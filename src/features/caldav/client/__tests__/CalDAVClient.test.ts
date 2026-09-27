@@ -141,6 +141,39 @@ END:VCALENDAR`,
       const headers = await params.authFunction(unicodeCreds)
       expect(headers).toEqual({ Authorization: 'Basic aXZhbjrlr4bnoIExMjM=' })
     })
+
+    it('uses browser-session mode with credentialed direct requests and no Authorization header', async () => {
+      const browserClient = new CalDAVClient(mockCredentials.serverUrl, {
+        ...mockCredentials,
+        authMode: 'browser-session',
+      })
+      await browserClient.connect()
+
+      const params = mockCreateDAVClient.mock.calls[0][0] as {
+        authMethod?: string
+        authFunction?: unknown
+        fetch: typeof fetch
+      }
+      expect(params.authMethod).toBeUndefined()
+      expect(params.authFunction).toBeUndefined()
+
+      await params.fetch('https://caldav.example.com/dav/', { method: 'PROPFIND' })
+      expect(fetchSpy).toHaveBeenCalledWith(
+        'https://caldav.example.com/dav/',
+        expect.objectContaining({ credentials: 'include' })
+      )
+    })
+
+    it('rejects proxy + browser-session mode', () => {
+      expect(
+        () =>
+          new CalDAVClient(
+            mockCredentials.serverUrl,
+            { ...mockCredentials, authMode: 'browser-session' },
+            'https://proxy.example.com'
+          )
+      ).toThrow('requires a direct DAV connection')
+    })
   })
 
   describe('principal discovery (RFC 5397 + RFC 4791)', () => {

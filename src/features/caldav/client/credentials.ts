@@ -13,8 +13,9 @@ const CREDENTIALS_KEY = 'calino_caldav_credentials'
 interface StoredCredential {
   id: string
   serverUrl: string
-  username: string
+  username?: string
   password: string | EncryptedData
+  authMode?: 'basic' | 'browser-session'
   customHeaders?: Record<string, EncryptedData>
 }
 
@@ -22,8 +23,9 @@ export async function saveCredentials(
   credentials: Omit<CalDAVCredentials, 'id'>
 ): Promise<CalDAVCredentials> {
   const stored = getAllStoredCredentials()
-
-  const encryptedPassword = await encryptPassword(credentials.password)
+  const authMode = credentials.authMode ?? 'basic'
+  const password = credentials.password ?? ''
+  const encryptedPassword = await encryptPassword(password)
   const customHeaders = validateCustomHeaders(credentials.customHeaders ?? {})
   const encryptedHeaders = Object.fromEntries(
     await Promise.all(
@@ -38,6 +40,7 @@ export async function saveCredentials(
     id: createUuid(),
     serverUrl: credentials.serverUrl,
     username: credentials.username,
+    authMode,
     password: encryptedPassword,
     customHeaders: encryptedHeaders,
   }
@@ -50,7 +53,8 @@ export async function saveCredentials(
     id: newCredential.id,
     serverUrl: newCredential.serverUrl,
     username: newCredential.username,
-    password: credentials.password,
+    password,
+    authMode,
     customHeaders,
   }
 }
@@ -97,6 +101,7 @@ export async function getAllCredentials(): Promise<CalDAVCredentials[]> {
       serverUrl: cred.serverUrl,
       username: cred.username,
       password,
+      authMode: cred.authMode ?? 'basic',
       customHeaders: Object.fromEntries(
         await Promise.all(
           Object.entries(cred.customHeaders ?? {}).map(async ([name, encrypted]) => [
@@ -143,6 +148,7 @@ export async function updateCredential(
       serverUrl: updates.serverUrl ?? existing.serverUrl,
       username: updates.username ?? existing.username,
       password: updates.password ? await encryptPassword(updates.password) : existing.password,
+      authMode: updates.authMode ?? existing.authMode ?? 'basic',
       customHeaders:
         updates.customHeaders === undefined
           ? existing.customHeaders

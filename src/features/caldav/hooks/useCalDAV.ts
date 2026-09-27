@@ -13,6 +13,7 @@ import type {
   MovePendingData,
   DeleteHrefPendingData,
   PendingChange,
+  CalDAVAuthMode,
 } from '../types'
 import { createCalDAVClient, unwrapFetchEvents } from '../client/CalDAVClient'
 import type { SyncCollectionChange } from '../client/CalDAVClient'
@@ -355,7 +356,8 @@ export interface UseCalDAVReturn {
     password: string,
     name: string,
     proxyUrl?: string | null,
-    customHeaders?: Record<string, string>
+    customHeaders?: Record<string, string>,
+    authMode?: CalDAVAuthMode
   ) => Promise<void>
   removeAccount: (accountId: string) => Promise<void>
   updateAccount: (
@@ -366,6 +368,7 @@ export interface UseCalDAVReturn {
       username: string
       /** Blank/undefined keeps the currently stored password. */
       password?: string
+      authMode?: CalDAVAuthMode
       proxyUrl?: string | null
       customHeaders?: Record<string, string>
     }
@@ -966,7 +969,8 @@ export function useCalDAVInstance(): UseCalDAVReturn {
       password: string,
       name: string,
       proxyUrl?: string | null,
-      customHeaders: Record<string, string> = {}
+      customHeaders: Record<string, string> = {},
+      authMode: CalDAVAuthMode = 'basic'
     ): Promise<void> => {
       setSyncState((prev) => ({ ...prev, status: 'syncing', error: null }))
       useCalDAVSyncStore.getState().setStatus('syncing')
@@ -988,7 +992,8 @@ export function useCalDAVInstance(): UseCalDAVReturn {
           password,
           proxyUrl,
           undefined,
-          customHeaders
+          customHeaders,
+          authMode
         )
         console.log('[CalDAV] addAccount: probe result:', probe.ok, probe.status ?? '')
 
@@ -1005,6 +1010,7 @@ export function useCalDAVInstance(): UseCalDAVReturn {
           serverUrl: discoveredUrl,
           username,
           password,
+          authMode,
           customHeaders,
         })
 
@@ -1020,6 +1026,7 @@ export function useCalDAVInstance(): UseCalDAVReturn {
           serverUrl: discoveredUrl,
           proxyUrl: proxyUrl || null,
           username,
+          authMode,
           credentialId: credential.id,
         })
 
@@ -1406,11 +1413,12 @@ export function useCalDAVInstance(): UseCalDAVReturn {
         try {
           await addAccount(
             credential.url,
-            credential.username,
-            credential.password,
+            credential.username ?? '',
+            credential.password ?? '',
             accountName,
             undefined,
-            credential.customHeaders
+            credential.customHeaders,
+            credential.authMode ?? 'basic'
           )
           connected++
         } catch (err) {
@@ -2061,10 +2069,11 @@ export function useCalDAVInstance(): UseCalDAVReturn {
     return probeConnection(
       account.serverUrl,
       account.username,
-      credential.password,
+      credential.password ?? '',
       account.proxyUrl,
       undefined,
-      credential.customHeaders
+      credential.customHeaders,
+      account.authMode ?? credential.authMode ?? 'basic'
     )
   }, [])
 
@@ -2076,6 +2085,7 @@ export function useCalDAVInstance(): UseCalDAVReturn {
         serverUrl: string
         username: string
         password?: string
+        authMode?: CalDAVAuthMode
         proxyUrl?: string | null
         customHeaders?: Record<string, string>
       }
@@ -2096,6 +2106,7 @@ export function useCalDAVInstance(): UseCalDAVReturn {
         // A blank password means "keep the current one".
         const effectivePassword = updates.password || credential.password
         const effectiveHeaders = updates.customHeaders ?? credential.customHeaders ?? {}
+        const authMode = updates.authMode ?? account.authMode ?? credential.authMode ?? 'basic'
         const proxyUrl = updates.proxyUrl ?? null
 
         const expanded = expandProviderUrl(updates.serverUrl, updates.username)
@@ -2106,10 +2117,11 @@ export function useCalDAVInstance(): UseCalDAVReturn {
         const probe = await probeConnection(
           effectiveUrl,
           updates.username,
-          effectivePassword,
+          effectivePassword ?? '',
           proxyUrl,
           updates.serverUrl,
-          effectiveHeaders
+          effectiveHeaders,
+          authMode
         )
         if (!probe.ok) {
           throw new Error(probe.error ?? i18n.t('errors:account.couldNotConnect'))
@@ -2128,12 +2140,14 @@ export function useCalDAVInstance(): UseCalDAVReturn {
           // updateCredential re-encrypts only when this is truthy, so a blank
           // password leaves the stored one untouched.
           password: updates.password || undefined,
+          authMode,
           customHeaders: effectiveHeaders,
         })
         storage.updateAccount(accountId, {
           name: updates.name,
           serverUrl: resolvedUrl,
           username: updates.username,
+          authMode,
           proxyUrl,
         })
 
@@ -2146,6 +2160,7 @@ export function useCalDAVInstance(): UseCalDAVReturn {
             serverUrl: resolvedUrl,
             username: updates.username,
             password: effectivePassword,
+            authMode,
             customHeaders: effectiveHeaders,
           }
           reportProgress({ label: i18n.t('caldav:progress.lookingForCalendars') })

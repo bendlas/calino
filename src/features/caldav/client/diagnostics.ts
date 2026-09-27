@@ -37,6 +37,7 @@ import {
   suggestCalDAVUrl,
 } from './discovery'
 import { CORS_HEADER_SNIPPET } from './errorMessages'
+import type { CalDAVAuthMode } from '../types'
 
 const CHECK_TIMEOUT_MS = 15_000
 
@@ -86,6 +87,7 @@ export interface DiagnosticsOptions {
   serverUrl: string
   username: string
   password: string
+  authMode?: CalDAVAuthMode
   customHeaders?: Record<string, string>
   proxyUrl?: string | null
   /** The URL the user typed, before `expandProviderUrl` rewrote it. */
@@ -159,6 +161,7 @@ export async function runDiagnostics(options: DiagnosticsOptions): Promise<Diagn
     serverUrl,
     username,
     password,
+    authMode = 'basic',
     proxyUrl,
     originalUrl,
     kind = 'caldav',
@@ -183,10 +186,19 @@ export async function runDiagnostics(options: DiagnosticsOptions): Promise<Diagn
   }
 
   const request = async (url: string, init: RequestInit): Promise<Response> => {
+    if (authMode === 'browser-session' && proxyUrl) {
+      throw new Error(
+        'Browser-session authentication requires a direct DAV connection. Remove the proxy URL.'
+      )
+    }
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), CHECK_TIMEOUT_MS)
     try {
-      const withSignal = { ...init, signal: controller.signal }
+      const withSignal: RequestInit = {
+        ...init,
+        signal: controller.signal,
+        ...(authMode === 'browser-session' ? { credentials: 'include' } : {}),
+      }
       return proxyUrl
         ? await proxyFetch(proxyUrl, url, withSignal)
         : await createDirectDavFetch(serverUrl, options.customHeaders)(url, withSignal)
@@ -195,9 +207,11 @@ export async function runDiagnostics(options: DiagnosticsOptions): Promise<Diagn
     }
   }
 
-  const authHeader = `Basic ${btoa(`${username}:${password}`)}`
+  const authHeader =
+    authMode === 'basic' ? `Basic ${btoa(`${username}:${password}`)}` : undefined
+  const authHeaders = (): Record<string, string> => (authHeader ? { Authorization: authHeader } : {})
   const davHeaders = (depth: '0' | '1'): Record<string, string> => ({
-    Authorization: authHeader,
+    ...authHeaders(),
     'Content-Type': 'application/xml; charset=utf-8',
     Depth: depth,
   })
@@ -219,7 +233,10 @@ export async function runDiagnostics(options: DiagnosticsOptions): Promise<Diagn
   let reachable = false
   try {
     if (viaProxy || native) {
-      await request(base, { method: 'GET', headers: { Authorization: authHeader } })
+      await request(base, {
+        method: 'GET',
+        headers: authHeaders(),
+      })
     } else {
       await webFetch(base, { method: 'GET', mode: 'no-cors' })
     }
@@ -273,7 +290,7 @@ export async function runDiagnostics(options: DiagnosticsOptions): Promise<Diagn
   try {
     optionsResponse = await request(base, {
       method: 'OPTIONS',
-      headers: { Authorization: authHeader },
+      headers: authHeaders(),
     })
   } catch {
     // Swallowed: the preflight check below reports the same wall with better
@@ -317,7 +334,7 @@ export async function runDiagnostics(options: DiagnosticsOptions): Promise<Diagn
         // The OPTIONS headers we collected describe the UI, not the endpoint.
         optionsResponse = await request(base, {
           method: 'OPTIONS',
-          headers: { Authorization: authHeader },
+          headers: authHeaders(),
         }).catch(() => null)
       }
     } catch {
@@ -605,7 +622,7 @@ export async function runDiagnostics(options: DiagnosticsOptions): Promise<Diagn
     try {
       const resource = await request(firstResourceHref, {
         method: 'GET',
-        headers: { Authorization: authHeader },
+        headers: authHeaders(),
       })
       const etag = resource.headers.get('etag')
       emit({
@@ -642,7 +659,7 @@ export async function runDiagnostics(options: DiagnosticsOptions): Promise<Diagn
   // ── 10. Write round-trip (opt-in) ──────────────────────────────────────────
   if (includeWriteTest) {
     if (baseIsWritableCollection) {
-      await runWriteTest({ base, kind, authHeader, request, emit, native })
+      await runWriteTest({ base, kind, authHeaders, request, emit, native })
     } else {
       // PUTting into a principal or home set is a guaranteed 403 that says
       // nothing about the server's health — the same distinction report-query
@@ -694,12 +711,12 @@ export async function runDiagnostics(options: DiagnosticsOptions): Promise<Diagn
 async function runWriteTest(ctx: {
   base: string
   kind: DavKind
-  authHeader: string
+  authHeaders: () => Record<string, string>
   request: (url: string, init: RequestInit) => Promise<Response>
   emit: (check: DiagnosticCheck) => DiagnosticCheck
   native: boolean
 }): Promise<void> {
-  const { base, kind, authHeader, request, emit, native } = ctx
+  const { base, kind, authHeaders, request, emit, native } = ctx
   const uid = `calino-diagnostics-${createUuid()}`
   const extension = kind === 'caldav' ? '.ics' : '.vcf'
   const targetUrl = `${base.replace(/\/$/, '')}/${uid}${extension}`
@@ -735,7 +752,7 @@ async function runWriteTest(ctx: {
     const put = await request(targetUrl, {
       method: 'PUT',
       headers: {
-        Authorization: authHeader,
+        ...authHeaders(),
         'Content-Type': contentType,
         'If-None-Match': '*',
       },
@@ -781,7 +798,7 @@ async function runWriteTest(ctx: {
   } finally {
     if (created) {
       try {
-        await request(targetUrl, { method: 'DELETE', headers: { Authorization: authHeader } })
+        await request(targetUrl, { method: 'DELETE', headers: authHeaders() })
       } catch {
         emit({
           id: 'write-roundtrip',
