@@ -1363,9 +1363,9 @@ export class CalDAVClient {
   </D:set>
 </D:mkcol>`
 
-    const mkcolHeaders: Record<string, string> = {
+    const mkcolHeaders: Record<string, string> = this.withAuthHeaders({
       'Content-Type': 'application/xml; charset=utf-8',
-    }
+    })
 
     const mkcolResp = await this.proxyFetch(calUrl, {
       method: 'MKCOL',

@@ -217,8 +217,7 @@ export function AddCalendarModal({
       accountName:
         (formData.get('accountName') as string) ||
         username ||
-        serverUrl ||
-        (mode === 'browser-session' ? 'Browser session' : ''),
+        serverUrl,
       proxyUrl: (formData.get('proxyUrl') as string) || undefined,
     }
   }
@@ -519,14 +518,19 @@ export function AddCalendarModal({
             </div>
           ) : (
             <>
-              <input
-                type="hidden"
-                name="username"
-                value={account?.username ?? ''}
-                readOnly
-                aria-hidden="true"
-              />
-              <input type="hidden" name="password" value="" readOnly aria-hidden="true" />
+              <div className={styles.formGroup}>
+                <label htmlFor="username" className={styles.formLabel}>
+                  Username <span className={styles.formLabelOptional}>(optional)</span>
+                </label>
+                <input
+                  id="username"
+                  name="username"
+                  autoComplete="username"
+                  className={styles.input}
+                  defaultValue={account?.username}
+                />
+              </div>
+              <input type="hidden" name="password" value="" readOnly />
             </>
           )}
           {connectionStatus === 'success' && (
