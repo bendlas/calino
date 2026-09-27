@@ -131,7 +131,8 @@ describe('AddCalendarModal', () => {
         'password123',
         'testuser',
         undefined,
-        {}
+        {},
+        'basic'
       )
     })
 
@@ -172,7 +173,8 @@ describe('AddCalendarModal', () => {
         'password123',
         'My Server',
         undefined,
-        {}
+        {},
+        'basic'
       )
     })
 

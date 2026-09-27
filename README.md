@@ -29,6 +29,10 @@ If you've been looking for a beautiful, modern browser-based CalDAV calendar tha
 
 Due to the browser-based nature of Calino, a web CalDAV/CardDAV server must allow requests from your Calino origin with CORS headers. If that's not an option, you can use a proxy URL during setup; Calino provides `https://proxy.calino.io` as a convenience.
 
+Calino also supports a **browser-session** auth mode for CalDAV: it sends no Basic `Authorization` header and asks the browser to include eligible cookies. This mode only reuses cookies the browser is allowed to attach; it does **not** implicitly reuse OAuth flows on its own. Browser-session mode requires a direct DAV connection (no proxy), because cookies apply to the proxy origin instead of your DAV origin.
+
+Browser-session mode is most reliable when Calino and your DAV endpoint are same-origin. For cross-origin use, your DAV server must allow credentialed CORS (`Access-Control-Allow-Origin` set to your Calino origin, not `*`, plus `Access-Control-Allow-Credentials: true`) and issue cookies compatible with cross-site requests (often `SameSite=None; Secure`). Browser third-party-cookie policies can still block those cookies.
+
 ### DAV behind an authentication gateway
 
 In the account form, add the headers required by your gateway. The self-hosted `/setup` generator has the same fields and encrypts each value in the generated `calino.config.json`.

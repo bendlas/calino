@@ -159,6 +159,19 @@ test.describe('connection errors', () => {
     await dialog.getByRole('button', { name: /Set up a proxy/ }).click()
     await expect(dialog.getByLabel('Proxy URL')).toBeFocused()
   })
+
+  test('rejects proxy URL when browser-session auth mode is selected', async ({ page }) => {
+    await fillAccountForm(page, '/good/')
+    const dialog = page.getByRole('dialog')
+    await dialog.getByLabel('Authentication').selectOption('browser-session')
+    await dialog.getByRole('button', { name: /connection settings/i }).click()
+    await dialog.getByLabel('Proxy URL').fill('https://proxy.example.com')
+    await dialog.getByRole('button', { name: 'Connect', exact: true }).click()
+
+    await expect(dialog).toContainText(
+      'Browser-session authentication only works with direct DAV connections'
+    )
+  })
 })
 
 test.describe('first-run setup page', () => {

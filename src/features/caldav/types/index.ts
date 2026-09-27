@@ -4,6 +4,7 @@ export interface CalDAVAccount {
   serverUrl: string
   proxyUrl: string | null
   username: string
+  authMode?: CalDAVAuthMode
   credentialId: string
   createdAt: string
   lastSyncAt: string | null
@@ -72,11 +73,14 @@ export interface DeleteHrefPendingData {
   memberIds: string[]
 }
 
+export type CalDAVAuthMode = 'basic' | 'browser-session'
+
 export interface CalDAVCredentials {
   id: string
   serverUrl: string
-  username: string
-  password: string
+  username?: string
+  password?: string
+  authMode?: CalDAVAuthMode
   customHeaders?: Record<string, string>
 }
 

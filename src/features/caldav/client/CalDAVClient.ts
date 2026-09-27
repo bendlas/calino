@@ -4,6 +4,7 @@ import type {
   CalDAVCalendar,
   CreateCalendarOptions,
   UpdateCalendarOptions,
+  CalDAVAuthMode,
 } from '../types'
 import { basicAuthHeader } from './basicAuth'
 import { createUuid } from '@/lib/uuid'
@@ -292,42 +293,84 @@ export class CalDAVClient {
   private serverUrl: string
   private proxyUrl: string | null
   private credentials: CalDAVCredentials
-  // Cached base64 auth header — avoids re-encoding on every request
-  private authHeader: string
+  private authMode: CalDAVAuthMode
+  // Cached base64 auth header for basic mode — avoids re-encoding on every request.
+  private authHeader: string | null
   // Cached calendar home URL — avoids re-discovery on every createCalendar
   private cachedCalendarHomeUrl: string | null = null
   // Proxy-aware fetch function (applied to all direct fetch calls)
-  private proxyFetch: (url: string | URL, init?: RequestInit) => Promise<Response>
+  private proxyFetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 
   constructor(serverUrl: string, credentials: CalDAVCredentials, proxyUrl: string | null = null) {
+    const authMode = credentials.authMode ?? 'basic'
+    if (authMode === 'browser-session' && proxyUrl) {
+      throw new Error(
+        'Browser-session authentication requires a direct DAV connection. Remove the proxy URL.'
+      )
+    }
     validateCustomHeaders(credentials.customHeaders ?? {}, proxyUrl)
     this.serverUrl = serverUrl
     this.proxyUrl = proxyUrl
     this.credentials = credentials
-    // UTF-8-safe Basic auth (btoa alone mangles non-ASCII credentials).
-    this.authHeader = basicAuthHeader(credentials.username, credentials.password)
+    this.authMode = authMode
+    this.authHeader =
+      this.authMode === 'basic'
+        ? basicAuthHeader(credentials.username ?? '', credentials.password ?? '')
+        : null
+    const directFetch = createDirectDavFetch(serverUrl, credentials.customHeaders, fetchWithTimeout)
+    const sessionFetch: typeof fetch = (input, init) =>
+      directFetch(input, { ...init, credentials: 'include' })
     this.proxyFetch = proxyUrl
       ? createProxyFetch(proxyUrl)
-      : createDirectDavFetch(serverUrl, credentials.customHeaders, fetchWithTimeout)
+      : this.authMode === 'browser-session'
+        ? sessionFetch
+        : directFetch
   }
 
   async connect(): Promise<void> {
+    // Always pass `authMethod: 'Custom'` — never leave it to tsdav's default.
+    //
+    // tsdav defaults to `authMethod: 'Basic'` whenever it is omitted, and then
+    // synthesizes a `Authorization: Basic …` header from `credentials` on every
+    // request. That is wrong for browser-session mode twice over: it puts a
+    // Basic header on the wire where the whole point is to rely on the session
+    // cookie, and the credentials it encodes may be empty or unrelated to the
+    // IdP login. A reverse proxy whose auth layer reads Basic (Authelia's
+    // `HeaderAuthorization`, for instance) then rejects the request with a 401
+    // even though the cookie was valid — symptom: setup probes fine, but tsdav
+    // discovery fails with "cannot find principalUrl".
+    //
+    // With Custom auth we control the header exactly:
+    //   - basic:           the UTF-8-correct Basic header we build ourselves
+    //                      (tsdav's own Basic encodes Latin-1 and throws above
+    //                      U+00FF), applied to every tsdav request;
+    //   - browser-session: no Authorization header at all — `proxyFetch`
+    //                      already sends `credentials: 'include'`, and the
+    //                      cookie is the credential.
+    const authFunction =
+      this.authMode === 'basic'
+        ? async () => ({ Authorization: this.authHeader! })
+        : async () => ({})
     this.client = await createDAVClient({
       serverUrl: this.serverUrl,
       credentials: {
-        username: this.credentials.username,
-        password: this.credentials.password,
+        username: this.credentials.username ?? '',
+        password: this.credentials.password ?? '',
       },
-      // tsdav's own Basic auth encodes Latin-1 codepoints and throws on
-      // anything above U+00FF — hand it the same UTF-8 header we use for
-      // direct requests so every tsdav call authenticates identically.
-      authMethod: 'Custom',
-      authFunction: async () => ({ Authorization: this.authHeader }),
       defaultAccountType: 'caldav',
-      fetch: this.proxyUrl
-        ? createProxyFetch(this.proxyUrl)
-        : createDirectDavFetch(this.serverUrl, this.credentials.customHeaders, fetchWithTimeout),
+      authMethod: 'Custom' as const,
+      authFunction,
+      fetch: this.proxyFetch,
     })
+  }
+
+  private withAuthHeaders(headers: Record<string, string>): Record<string, string> {
+    if (!this.authHeader) return headers
+    return { ...headers, Authorization: this.authHeader }
+  }
+
+  private authOnlyHeaders(): Record<string, string> {
+    return this.withAuthHeaders({})
   }
 
   private getClient() {
@@ -578,10 +621,7 @@ export class CalDAVClient {
 
     const response = await this.proxyFetch(href, {
       method: 'GET',
-      headers: {
-        Authorization: this.authHeader,
-        Accept: 'text/calendar',
-      },
+      headers: this.withAuthHeaders({ Accept: 'text/calendar' }),
     })
 
     if (response.status === 404 || response.status === 410) return null
@@ -652,11 +692,10 @@ export class CalDAVClient {
     try {
       const response = await this.proxyFetch(eventUrl, {
         method: 'PROPFIND',
-        headers: {
+        headers: this.withAuthHeaders({
           'Content-Type': 'application/xml; charset=utf-8',
-          Authorization: this.authHeader,
           Depth: '0',
-        },
+        }),
         body: `<?xml version="1.0" encoding="UTF-8" ?>
 <d:propfind xmlns:d="DAV:">
   <d:prop>
@@ -825,10 +864,9 @@ export class CalDAVClient {
     const calendarUri = `${baseUri}-${randomSuffix}`
     const calendarUrl = `${calendarHomeUrl}${calendarUri}/`
 
-    const headers: Record<string, string> = {
+    const headers: Record<string, string> = this.withAuthHeaders({
       'Content-Type': 'application/xml; charset=utf-8',
-      Authorization: this.authHeader,
-    }
+    })
 
     const response = await this.proxyFetch(calendarUrl, {
       method: 'MKCOL',
@@ -961,8 +999,8 @@ export class CalDAVClient {
     const response = await this.proxyFetch(url, {
       method: 'PROPFIND',
       headers: {
+        ...this.authOnlyHeaders(),
         'Content-Type': 'application/xml; charset=utf-8',
-        Authorization: this.authHeader,
         Depth: '0',
       },
       body,
@@ -1035,10 +1073,9 @@ export class CalDAVClient {
   </set>
 </propertyupdate>`
 
-    const headers: Record<string, string> = {
+    const headers: Record<string, string> = this.withAuthHeaders({
       'Content-Type': 'application/xml; charset=utf-8',
-      Authorization: this.authHeader,
-    }
+    })
 
     const response = await this.proxyFetch(calendarUrl, {
       method: 'PROPPATCH',
@@ -1057,9 +1094,7 @@ export class CalDAVClient {
       throw new Error('No network connection. Please check your internet connection.')
     }
 
-    const headers: Record<string, string> = {
-      Authorization: this.authHeader,
-    }
+    const headers: Record<string, string> = this.authOnlyHeaders()
 
     const response = await this.proxyFetch(calendarUrl, {
       method: 'DELETE',
@@ -1158,10 +1193,9 @@ export class CalDAVClient {
   </D:prop>
 </D:sync-collection>`
 
-    const headers: Record<string, string> = {
+    const headers: Record<string, string> = this.withAuthHeaders({
       'Content-Type': 'application/xml; charset=utf-8',
-      Authorization: this.authHeader,
-    }
+    })
 
     try {
       const response = await this.proxyFetch(collectionUrl, {
@@ -1255,11 +1289,10 @@ export class CalDAVClient {
       throw new Error('No network connection. Please check your internet connection.')
     }
 
-    const headers: Record<string, string> = {
+    const headers: Record<string, string> = this.withAuthHeaders({
       'Content-Type': 'application/xml; charset=utf-8',
-      Authorization: this.authHeader,
       Depth: '1',
-    }
+    })
 
     // PROPFIND depth-1 on the calendar home to list all child collections
     const propfindXml = `<?xml version="1.0" encoding="UTF-8" ?>
@@ -1344,10 +1377,9 @@ export class CalDAVClient {
   </D:set>
 </D:mkcol>`
 
-    const mkcolHeaders: Record<string, string> = {
+    const mkcolHeaders: Record<string, string> = this.withAuthHeaders({
       'Content-Type': 'application/xml; charset=utf-8',
-      Authorization: this.authHeader,
-    }
+    })
 
     const mkcolResp = await this.proxyFetch(calUrl, {
       method: 'MKCOL',
@@ -1410,11 +1442,10 @@ export class CalDAVClient {
   </c:filter>
 </c:calendar-query>`
 
-    const headers: Record<string, string> = {
+    const headers: Record<string, string> = this.withAuthHeaders({
       'Content-Type': 'application/xml; charset=utf-8',
-      Authorization: this.authHeader,
       Depth: '1',
-    }
+    })
 
     const response = await this.proxyFetch(settingsCalendarUrl, {
       method: 'REPORT',
@@ -1651,9 +1682,7 @@ export class CalDAVClient {
     if (!navigator.onLine) {
       throw new Error('No network connection. Please check your internet connection.')
     }
-    const headers: Record<string, string> = {
-      Authorization: this.authHeader,
-    }
+    const headers: Record<string, string> = this.authOnlyHeaders()
     const resp = await this.proxyFetch(settingsCalendarUrl, {
       method: 'DELETE',
       headers,
@@ -1669,7 +1698,7 @@ export class CalDAVClient {
   // Free/busy (RFC 4791 §7.10 and RFC 6638 §4.1)
   //
   // These live on the client rather than in a standalone module because every
-  // request has to go through `proxyFetch` and `authHeader` — a raw fetch from
+  // request has to go through `proxyFetch` and the selected auth mode — a raw fetch from
   // the page to an arbitrary CalDAV host is blocked by CORS. They return null
   // (never throw) when the server can't or won't answer: "unknown" is the
   // expected outcome for most servers, not an error worth surfacing.
@@ -1684,7 +1713,7 @@ export class CalDAVClient {
     try {
       const response = await this.proxyFetch(url ?? this.serverUrl, {
         method: 'OPTIONS',
-        headers: { Authorization: this.authHeader },
+        headers: this.authOnlyHeaders(),
       })
       const dav = response.headers?.get?.('dav') ?? ''
       return /calendar-auto-schedule/i.test(dav)
@@ -1706,8 +1735,8 @@ export class CalDAVClient {
       const response = await this.proxyFetch(calendarUrl, {
         method: 'REPORT',
         headers: {
+          ...this.authOnlyHeaders(),
           'Content-Type': 'application/xml; charset=utf-8',
-          Authorization: this.authHeader,
           Depth: '1',
         },
         body: buildFreeBusyQueryXml(start, end),
@@ -1738,8 +1767,8 @@ export class CalDAVClient {
       const response = await this.proxyFetch(outboxUrl, {
         method: 'POST',
         headers: {
+          ...this.authOnlyHeaders(),
           'Content-Type': 'text/calendar; charset=utf-8',
-          Authorization: this.authHeader,
           Originator: `mailto:${organizerEmail}`,
           Recipient: attendeeEmails.map((e) => `mailto:${e}`).join(', '),
         },

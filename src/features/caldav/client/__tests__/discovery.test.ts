@@ -623,6 +623,74 @@ describe('discovery', () => {
       )
     }
 
+    it('sends Basic Authorization headers in basic mode', async () => {
+      const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+        if (init?.method === 'PROPFIND') {
+          return { ok: false, status: 207 } as Response
+        }
+        return {
+          ok: true,
+          status: 200,
+          url: 'https://caldav.example.com/dav.php',
+          headers: new Headers(),
+        } as unknown as Response
+      })
+      vi.stubGlobal('fetch', fetchMock)
+
+      const result = await probeConnection('https://caldav.example.com', 'user', 'pw')
+
+      expect(result.ok).toBe(true)
+      const propfindCall = fetchMock.mock.calls.find(([, init]) => init?.method === 'PROPFIND')
+      const headers = new Headers(propfindCall?.[1]?.headers)
+      expect(headers.get('Authorization')).toMatch(/^Basic /)
+    })
+
+    it('uses credentials include and no Authorization header in browser-session mode', async () => {
+      const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+        if (init?.method === 'PROPFIND') {
+          return { ok: false, status: 207 } as Response
+        }
+        return {
+          ok: true,
+          status: 200,
+          url: 'https://caldav.example.com/dav.php',
+          headers: new Headers(),
+        } as unknown as Response
+      })
+      vi.stubGlobal('fetch', fetchMock)
+
+      const result = await probeConnection(
+        'https://caldav.example.com',
+        '',
+        '',
+        undefined,
+        undefined,
+        {},
+        'browser-session'
+      )
+
+      expect(result.ok).toBe(true)
+      const propfindCall = fetchMock.mock.calls.find(([, init]) => init?.method === 'PROPFIND')
+      expect(propfindCall?.[1]?.credentials).toBe('include')
+      const headers = new Headers(propfindCall?.[1]?.headers)
+      expect(headers.get('Authorization')).toBeNull()
+    })
+
+    it('rejects proxy + browser-session mode', async () => {
+      const result = await probeConnection(
+        'https://caldav.example.com',
+        '',
+        '',
+        'https://proxy.example.com',
+        undefined,
+        {},
+        'browser-session'
+      )
+
+      expect(result.ok).toBe(false)
+      expect(result.error).toContain('direct DAV connection')
+    })
+
     it('treats 207 Multi-Status as success and reports the resolved URL', async () => {
       stubFetch({
         wellKnownUrl: 'https://caldav.example.com/dav.php',

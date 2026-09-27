@@ -98,7 +98,8 @@ export function CalDAVSettings({ searchControl }: { searchControl?: JSX.Element 
       options: {
         serverUrl: account.serverUrl,
         username: account.username,
-        password: credential.password,
+        password: credential.password ?? '',
+        authMode: account.authMode ?? credential.authMode ?? 'basic',
         customHeaders: credential.customHeaders,
         proxyUrl: account.proxyUrl,
       },

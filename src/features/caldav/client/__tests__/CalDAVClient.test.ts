@@ -141,6 +141,44 @@ END:VCALENDAR`,
       const headers = await params.authFunction(unicodeCreds)
       expect(headers).toEqual({ Authorization: 'Basic aXZhbjrlr4bnoIExMjM=' })
     })
+
+    it('uses browser-session mode with credentialed direct requests and no Authorization header', async () => {
+      const browserClient = new CalDAVClient(mockCredentials.serverUrl, {
+        ...mockCredentials,
+        authMode: 'browser-session',
+      })
+      await browserClient.connect()
+
+      const params = mockCreateDAVClient.mock.calls[0][0] as {
+        authMethod?: string
+        authFunction?: (c: unknown) => Promise<Record<string, string>>
+        fetch: typeof fetch
+      }
+      // Must be Custom, not undefined: tsdav defaults an omitted authMethod to
+      // 'Basic' and would then put a rejected Basic header on every request,
+      // defeating the browser-session cookie even when it is valid.
+      expect(params.authMethod).toBe('Custom')
+      expect(params.authFunction).toBeDefined()
+      // The Custom function must yield no Authorization header at all.
+      expect(await params.authFunction!(mockCredentials)).toEqual({})
+
+      await params.fetch('https://caldav.example.com/dav/', { method: 'PROPFIND' })
+      expect(fetchSpy).toHaveBeenCalledWith(
+        'https://caldav.example.com/dav/',
+        expect.objectContaining({ credentials: 'include' })
+      )
+    })
+
+    it('rejects proxy + browser-session mode', () => {
+      expect(
+        () =>
+          new CalDAVClient(
+            mockCredentials.serverUrl,
+            { ...mockCredentials, authMode: 'browser-session' },
+            'https://proxy.example.com'
+          )
+      ).toThrow('requires a direct DAV connection')
+    })
   })
 
   describe('principal discovery (RFC 5397 + RFC 4791)', () => {

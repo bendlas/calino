@@ -14,6 +14,7 @@ interface DecryptedCredential {
   url: string
   username: string
   password: string
+  authMode?: 'basic' | 'browser-session'
   customHeaders?: Record<string, string>
 }
 

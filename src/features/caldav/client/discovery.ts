@@ -3,6 +3,7 @@ import { webFetch } from '@/lib/webFetch'
 import { createDirectDavFetch, validateCustomHeaders, type CustomHeaders } from './customHeaders'
 import { basicAuthHeader } from './basicAuth'
 import i18n from '@/lib/i18n'
+import type { CalDAVAuthMode } from '../types'
 
 const DISCOVERY_TIMEOUT_MS = 8_000
 
@@ -334,18 +335,28 @@ function buildBaseUrl(serverBaseUrl: string, discoveredPath: string, finalOrigin
 export async function testConnection(
   serverUrl: string,
   credentials: { username: string; password: string },
-  proxyUrl?: string | null
+  proxyUrl?: string | null,
+  authMode: CalDAVAuthMode = 'basic'
 ): Promise<boolean> {
   try {
-    const fetchFn = proxyUrl ? createProxyFetch(proxyUrl) : webFetch
+    if (authMode === 'browser-session' && proxyUrl) {
+      throw new Error(
+        'Browser-session authentication requires a direct DAV connection. Remove the proxy URL.'
+      )
+    }
+    const baseFetch = proxyUrl ? createProxyFetch(proxyUrl) : webFetch
+    const fetchFn: typeof fetch =
+      authMode === 'browser-session'
+        ? (input, init) => baseFetch(input, { ...init, credentials: 'include' })
+        : baseFetch
 
     const client = await createDAVClient({
       serverUrl,
       credentials: {
-        username: credentials.username,
-        password: credentials.password,
+        username: credentials.username ?? '',
+        password: credentials.password ?? '',
       },
-      authMethod: 'Basic',
+      ...(authMode === 'basic' ? { authMethod: 'Basic' as const } : {}),
       defaultAccountType: 'caldav',
       fetch: fetchFn,
     })
@@ -384,11 +395,17 @@ export async function probeConnection(
   password: string,
   proxyUrl?: string | null,
   originalUrl?: string,
-  customHeaders: CustomHeaders = {}
+  customHeaders: CustomHeaders = {},
+  authMode: CalDAVAuthMode = 'basic'
 ): Promise<ProbeResult> {
   const hintUrl = originalUrl || serverUrl
 
   try {
+    if (authMode === 'browser-session' && proxyUrl) {
+      throw new Error(
+        'Browser-session authentication requires a direct DAV connection. Remove the proxy URL.'
+      )
+    }
     validateCustomHeaders(customHeaders, proxyUrl)
     let baseUrl = await discoverServerUrl(serverUrl, proxyUrl ?? undefined)
     // When a gateway protects /.well-known, discovery falls back to the
@@ -405,19 +422,23 @@ export async function probeConnection(
     const directFetch = createDirectDavFetch(serverUrl, customHeaders)
 
     const attempt = async (url: string): Promise<{ ok: boolean; status: number }> => {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/xml',
+        Depth: '0',
+      }
+      if (authMode === 'basic') {
+        headers.Authorization = basicAuthHeader(username, password)
+      }
       const init: RequestInit = {
         method: 'PROPFIND',
-        headers: {
-          Authorization: basicAuthHeader(username, password),
-          'Content-Type': 'application/xml',
-          Depth: '0',
-        },
+        headers,
         body: `<?xml version="1.0" encoding="UTF-8"?>
             <d:propfind xmlns:d="DAV:">
               <d:prop>
                 <d:displayname/>
               </d:prop>
             </d:propfind>`,
+        ...(authMode === 'browser-session' ? { credentials: 'include' as const } : {}),
       }
 
       const response = proxyUrl

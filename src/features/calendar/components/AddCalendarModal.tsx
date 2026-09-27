@@ -19,6 +19,7 @@ import {
 import { isCleartextUrl, CLEARTEXT_WARNING } from '@/features/caldav/client/insecureUrl'
 import { DiagnosticsPanel } from '@/features/settings/components/DiagnosticsPanel'
 import type { CalDAVAccount } from '@/features/caldav/types'
+import type { CalDAVAuthMode } from '@/features/caldav/types'
 import { CustomHeadersEditor } from '@/features/caldav/components/CustomHeadersEditor'
 import { connectionNudgeFor } from '@/features/caldav/components/connectionNudge'
 import { rowsToHeaders, type HeaderRow } from '@/features/caldav/components/headerRows'
@@ -52,6 +53,7 @@ export function AddCalendarModal({
   const [isSaving, setIsSaving] = useState(false)
   const [errorCode, setErrorCode] = useState<SyncErrorCode | null>(null)
   const [proxyDraft, setProxyDraft] = useState(account?.proxyUrl ?? '')
+  const [authModeDraft, setAuthModeDraft] = useState<CalDAVAuthMode | null>(null)
   const [headerRows, setHeaderRows] = useState<HeaderRow[]>([])
   const [settingsOpen, setSettingsOpen] = useState<boolean | undefined>(undefined)
   const [hasFailed, setHasFailed] = useState(false)
@@ -69,6 +71,7 @@ export function AddCalendarModal({
   // import); show them here so a slow first sync doesn't look like a hang.
   const progressTask = useProgressStore(selectActiveTask)
   const isEdit = mode === 'edit' && account !== undefined
+  const authMode = authModeDraft ?? account?.authMode ?? 'basic'
   const formRef = useRef<HTMLFormElement>(null)
   const isSavingRef = useRef(false)
 
@@ -97,6 +100,7 @@ export function AddCalendarModal({
     setHasFailed(false)
     setSettingsOpen(undefined)
     setProxyDraft(account?.proxyUrl ?? '')
+    setAuthModeDraft(null)
     if (!account) setHeaderRows([])
     onClose()
   }, [onClose, account])
@@ -140,6 +144,7 @@ export function AddCalendarModal({
     serverUrl: string,
     username: string,
     password: string,
+    mode: CalDAVAuthMode,
     proxyUrl?: string,
     originalUrl?: string,
     customHeaders: Record<string, string> = {}
@@ -155,7 +160,8 @@ export function AddCalendarModal({
         password,
         proxyUrl,
         originalUrl,
-        customHeaders
+        customHeaders,
+        mode
       )
 
       setConnectionStatus(result.ok ? 'success' : 'error')
@@ -167,7 +173,15 @@ export function AddCalendarModal({
         if (result.hint) {
           setConnectionHint(result.hint)
         }
-        setDiagnoseTarget({ serverUrl, username, password, proxyUrl, originalUrl, customHeaders })
+        setDiagnoseTarget({
+          serverUrl,
+          username,
+          password,
+          authMode: mode,
+          proxyUrl,
+          originalUrl,
+          customHeaders,
+        })
       } else {
         setDiagnoseTarget(null)
       }
@@ -187,16 +201,23 @@ export function AddCalendarModal({
     serverUrl: string
     username: string
     password: string
+    authMode: CalDAVAuthMode
     accountName: string
     proxyUrl: string | undefined
   } => {
     const formData = new FormData(form)
     const username = formData.get('username') as string
+    const serverUrl = (formData.get('serverUrl') as string).trim()
+    const mode = (formData.get('authMode') as CalDAVAuthMode | null) ?? 'basic'
     return {
-      serverUrl: formData.get('serverUrl') as string,
+      serverUrl,
       username,
       password: formData.get('password') as string,
-      accountName: (formData.get('accountName') as string) || username,
+      authMode: mode,
+      accountName:
+        (formData.get('accountName') as string) ||
+        username ||
+        serverUrl,
       proxyUrl: (formData.get('proxyUrl') as string) || undefined,
     }
   }
@@ -204,7 +225,7 @@ export function AddCalendarModal({
   /** Test button (edit mode) — probes the values currently in the form, saves nothing. */
   const handleTestClick = async (): Promise<void> => {
     if (!formRef.current) return
-    const { serverUrl, username, password, proxyUrl } = readForm(formRef.current)
+    const { serverUrl, username, password, authMode: formAuthMode, proxyUrl } = readForm(formRef.current)
     let customHeaders: Record<string, string>
     try {
       customHeaders = rowsToHeaders(headerRows, proxyUrl)
@@ -214,13 +235,21 @@ export function AddCalendarModal({
       return
     }
 
+    if (formAuthMode === 'browser-session' && proxyUrl) {
+      setConnectionStatus('error')
+      setConnectionError(
+        'Browser-session authentication only works with direct DAV connections. Remove the proxy URL.'
+      )
+      return
+    }
+
     // A blank password means "keep the current one", so test with the stored one.
     let effectivePassword = password
-    if (!effectivePassword && account) {
+    if (formAuthMode === 'basic' && !effectivePassword && account) {
       const credential = await getCredentialById(account.credentialId)
       effectivePassword = credential?.password ?? ''
     }
-    if (!effectivePassword) {
+    if (formAuthMode === 'basic' && !effectivePassword) {
       setConnectionStatus('error')
       setConnectionError('Enter a password to test the connection.')
       return
@@ -231,6 +260,7 @@ export function AddCalendarModal({
       expanded || serverUrl,
       username,
       effectivePassword,
+      formAuthMode,
       proxyUrl,
       serverUrl,
       customHeaders
@@ -276,7 +306,9 @@ export function AddCalendarModal({
     // a double-tap from firing two submits, which would add the account twice.
     if (isSavingRef.current) return
 
-    const { serverUrl, username, password, accountName, proxyUrl } = readForm(e.currentTarget)
+    const { serverUrl, username, password, authMode: formAuthMode, accountName, proxyUrl } = readForm(
+      e.currentTarget
+    )
     let customHeaders: Record<string, string>
     try {
       customHeaders = rowsToHeaders(headerRows, proxyUrl)
@@ -300,6 +332,14 @@ export function AddCalendarModal({
       }
     }
 
+    if (formAuthMode === 'browser-session' && proxyUrl) {
+      setConnectionStatus('error')
+      setConnectionError(
+        'Browser-session authentication only works with direct DAV connections. Remove the proxy URL.'
+      )
+      return
+    }
+
     isSavingRef.current = true
     setIsSaving(true)
     clearFailure()
@@ -311,6 +351,7 @@ export function AddCalendarModal({
           serverUrl,
           username,
           password: password || undefined,
+          authMode: formAuthMode,
           proxyUrl: proxyUrl ?? null,
           customHeaders,
         })
@@ -325,7 +366,8 @@ export function AddCalendarModal({
           password,
           accountName,
           proxyUrl,
-          customHeaders
+          customHeaders,
+          formAuthMode
         )
       }
       requestClose()
@@ -348,6 +390,7 @@ export function AddCalendarModal({
         serverUrl: expandProviderUrl(serverUrl, username) || serverUrl,
         username,
         password: effectivePassword,
+        authMode: formAuthMode,
         proxyUrl: proxyUrl ?? null,
         originalUrl: serverUrl,
         customHeaders,
@@ -406,6 +449,27 @@ export function AddCalendarModal({
             />
           </div>
           <div className={styles.formGroup}>
+            <label htmlFor="authMode" className={styles.formLabel}>
+              Authentication
+            </label>
+            <select
+              id="authMode"
+              name="authMode"
+              className={styles.input}
+              value={authMode}
+              onChange={(e) => setAuthModeDraft(e.target.value as CalDAVAuthMode)}
+            >
+              <option value="basic">Username + password (Basic auth)</option>
+              <option value="browser-session">Reuse browser session cookies</option>
+            </select>
+          </div>
+          {authMode === 'browser-session' && (
+            <div className={styles.formHint}>
+              Browser-session mode sends no Authorization header and reuses browser cookies. It
+              requires a direct DAV connection (no proxy URL).
+            </div>
+          )}
+          <div className={styles.formGroup}>
             <label htmlFor="serverUrl" className={styles.formLabel}>
               Server URL
             </label>
@@ -420,37 +484,55 @@ export function AddCalendarModal({
             />
             {isCleartextUrl(urlDraft) && <div className={styles.formWarn}>{CLEARTEXT_WARNING}</div>}
           </div>
-          <div className={styles.credentialsRow}>
-            <div className={styles.formGroup}>
-              <label htmlFor="username" className={styles.formLabel}>
-                Username
-              </label>
-              <input
-                id="username"
-                name="username"
-                autoComplete="username"
-                className={styles.input}
-                defaultValue={account?.username}
-                required
-              />
+          {authMode === 'basic' ? (
+            <div className={styles.credentialsRow}>
+              <div className={styles.formGroup}>
+                <label htmlFor="username" className={styles.formLabel}>
+                  Username
+                </label>
+                <input
+                  id="username"
+                  name="username"
+                  autoComplete="username"
+                  className={styles.input}
+                  defaultValue={account?.username}
+                  required
+                />
+              </div>
+              <div className={styles.formGroup}>
+                <label htmlFor="password" className={styles.formLabel}>
+                  Password
+                </label>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="current-password"
+                  className={`${styles.input} ${errorCode === 'auth' ? styles.inputInvalid : ''}`}
+                  aria-invalid={errorCode === 'auth' || undefined}
+                  aria-describedby={errorCode === 'auth' ? 'connection-error' : undefined}
+                  required={!isEdit}
+                />
+                {isEdit && <span className={styles.formHint}>{t('surface.passwordHint')}</span>}
+              </div>
             </div>
-            <div className={styles.formGroup}>
-              <label htmlFor="password" className={styles.formLabel}>
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                className={`${styles.input} ${errorCode === 'auth' ? styles.inputInvalid : ''}`}
-                aria-invalid={errorCode === 'auth' || undefined}
-                aria-describedby={errorCode === 'auth' ? 'connection-error' : undefined}
-                required={!isEdit}
-              />
-              {isEdit && <span className={styles.formHint}>{t('surface.passwordHint')}</span>}
-            </div>
-          </div>
+          ) : (
+            <>
+              <div className={styles.formGroup}>
+                <label htmlFor="username" className={styles.formLabel}>
+                  Username <span className={styles.formLabelOptional}>(optional)</span>
+                </label>
+                <input
+                  id="username"
+                  name="username"
+                  autoComplete="username"
+                  className={styles.input}
+                  defaultValue={account?.username}
+                />
+              </div>
+              <input type="hidden" name="password" value="" readOnly />
+            </>
+          )}
           {connectionStatus === 'success' && (
             <p className={styles.successMessage}>{t('surface.connectionSuccessful')}</p>
           )}
@@ -502,6 +584,12 @@ export function AddCalendarModal({
             nudge={nudge?.target ?? null}
             nudgeLabel={nudge?.label}
           />
+          {authMode === 'browser-session' && proxyDraft.trim() && (
+            <div className={styles.formWarn}>
+              Browser-session auth cannot use a proxy URL. Cookies apply to the proxy origin, not
+              your CalDAV server.
+            </div>
+          )}
           {isSaving && progressTask && (
             <div className={styles.progress} role="status" aria-live="polite">
               <div
