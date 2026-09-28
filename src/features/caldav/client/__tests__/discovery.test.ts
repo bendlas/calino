@@ -780,4 +780,77 @@ describe('discovery', () => {
       expect(result.hint).toContain('app-specific password')
     })
   })
+
+  // -----------------------------------------------------------------------
+  // probeConnection — an entered collection URL is honored as-is
+  // -----------------------------------------------------------------------
+  describe('probeConnection: concrete collection URLs', () => {
+    const collectionXml = `<?xml version="1.0"?>
+<d:multistatus xmlns:d="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <d:response>
+    <d:href>/caldav.php/chair/calendar/</d:href>
+    <d:propstat><d:prop><d:resourcetype><d:collection/><C:calendar/></d:resourcetype></d:prop></d:propstat>
+  </d:response>
+</d:multistatus>`
+    const collectionOnlyXml = `<?xml version="1.0"?>
+<d:multistatus xmlns:d="DAV:">
+  <d:response>
+    <d:href>/remote.php/dav/</d:href>
+    <d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop></d:propstat>
+  </d:response>
+</d:multistatus>`
+
+    /** PROPFIND answers with the given XML; the discovery GET is never needed. */
+    const stubFetch = (propfindXml: string): ReturnType<typeof vi.fn> => {
+      const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+        if (init?.method === 'PROPFIND') return new Response(propfindXml, { status: 207 })
+        return {
+          ok: true,
+          status: 200,
+          url: 'https://caldav.example.com/remote.php/dav/',
+          headers: new Headers(),
+        } as unknown as Response
+      })
+      vi.stubGlobal('fetch', fetchMock)
+      return fetchMock
+    }
+
+    it('uses the entered calendar collection and skips well-known discovery', async () => {
+      const fetchMock = stubFetch(collectionXml)
+
+      const result = await probeConnection(
+        'https://caldav.example.com/caldav.php/chair/calendar',
+        'user',
+        'pw'
+      )
+
+      expect(result.ok).toBe(true)
+      expect(result.resolvedUrl).toBe('https://caldav.example.com/caldav.php/chair/calendar')
+      // No GET to /.well-known/caldav — discovery would rewrite the path away.
+      expect(fetchMock.mock.calls.map(([, init]) => init?.method)).toEqual(['PROPFIND'])
+    })
+
+    it('still discovers a server base URL through well-known', async () => {
+      const fetchMock = stubFetch(collectionOnlyXml)
+
+      const result = await probeConnection('https://caldav.example.com', 'user', 'pw')
+
+      expect(result.ok).toBe(true)
+      expect(result.resolvedUrl).toBe('https://caldav.example.com/remote.php/dav/')
+      expect(fetchMock.mock.calls.some(([, init]) => init?.method !== 'PROPFIND')).toBe(true)
+    })
+
+    it('still discovers a path base that is not a collection', async () => {
+      stubFetch(collectionOnlyXml)
+
+      const result = await probeConnection(
+        'https://caldav.example.com/remote.php/dav',
+        'user',
+        'pw'
+      )
+
+      expect(result.ok).toBe(true)
+      expect(result.resolvedUrl).toBe('https://caldav.example.com/remote.php/dav/')
+    })
+  })
 })

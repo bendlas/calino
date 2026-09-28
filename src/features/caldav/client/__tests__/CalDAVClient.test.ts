@@ -2010,4 +2010,72 @@ END:VCALENDAR`,
       expect(String(init?.body)).toContain('<D:sync-token/>')
     })
   })
+
+  // -----------------------------------------------------------------------
+  // Accounts pointed at a single collection (e.g. a shared calendar)
+  // -----------------------------------------------------------------------
+  describe('collection-URL accounts', () => {
+    const collectionUrl = 'https://caldav.example.com/caldav.php/chair/calendar'
+    const collectionWithSlash = collectionUrl + '/'
+    const collectionXml = `<?xml version="1.0"?>
+<d:multistatus xmlns:d="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <d:response>
+    <d:href>/caldav.php/chair/calendar/</d:href>
+    <d:propstat><d:prop><d:resourcetype><d:collection/><C:calendar/></d:resourcetype></d:prop></d:propstat>
+  </d:response>
+</d:multistatus>`
+
+    it('lists the entered collection instead of the principal home', async () => {
+      fetchSpy.mockResolvedValue(new Response(collectionXml, { status: 207 }))
+
+      const createdAccount = {
+        serverUrl: collectionWithSlash,
+        accountType: 'caldav' as const,
+        homeUrl: collectionWithSlash,
+      }
+      const createAccount = vi.fn().mockResolvedValue(createdAccount)
+      const fetchCalendars = vi.fn().mockResolvedValue([
+        { url: collectionWithSlash, displayName: 'Chair calendar', components: ['VEVENT'] },
+      ])
+      mockCreateDAVClient.mockResolvedValue({
+        ...mockClientMethods,
+        createAccount,
+        fetchCalendars,
+      })
+
+      const client = await createCalDAVClient(collectionUrl, {
+        id: 'cred-chair',
+        serverUrl: collectionUrl,
+        username: '',
+        password: '',
+      })
+      const calendars = await client.fetchCalendars()
+
+      expect(createAccount).toHaveBeenCalledWith({
+        account: {
+          serverUrl: collectionWithSlash,
+          accountType: 'caldav',
+          homeUrl: collectionWithSlash,
+        },
+      })
+      expect(fetchCalendars).toHaveBeenCalledWith(
+        expect.objectContaining({ account: createdAccount })
+      )
+      expect(calendars).toHaveLength(1)
+      expect(calendars[0].url).toBe(collectionWithSlash)
+    })
+
+    it('keeps principal-home discovery for a server base URL', async () => {
+      const createAccount = vi.fn()
+      mockCreateDAVClient.mockResolvedValue({ ...mockClientMethods, createAccount })
+
+      const client = await createCalDAVClient(mockCredentials.serverUrl, mockCredentials)
+      await client.fetchCalendars()
+
+      expect(createAccount).not.toHaveBeenCalled()
+      // No account override → tsdav lists the principal's home.
+      const lastCall = mockClientMethods.fetchCalendars.mock.calls.at(-1)
+      expect(lastCall?.[0]?.account).toBeUndefined()
+    })
+  })
 })

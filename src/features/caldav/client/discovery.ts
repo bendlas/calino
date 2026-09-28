@@ -181,6 +181,54 @@ export function isDavStatus(status: number): boolean {
 }
 
 /**
+ * Result of a single raw PROPFIND probe: whether it spoke DAV and, when it did,
+ * the DAV resourcetype child names it reported.
+ */
+interface DavProbeResult {
+  ok: boolean
+  status: number
+  /** Lowercased resourcetype child element names, e.g. ['collection','calendar']. */
+  resourcetypes: string[]
+}
+
+/**
+ * Does a resourcetype describe a single calendar/addressbook collection (as
+ * opposed to a server root, a principal, or a `/dav.php` base)?
+ */
+function isConcreteCollection(resourcetypes: string[]): boolean {
+  return resourcetypes.includes('calendar') || resourcetypes.includes('addressbook')
+}
+
+/** Does the URL carry a path beyond the root (so it could name a collection)? */
+function hasNonRootPath(url: string): boolean {
+  try {
+    return new URL(url).pathname.replace(/\/$/, '') !== ''
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Parse the resourcetype child element names out of a PROPFIND multistatus.
+ * Namespaces are ignored (local names only): DAViCal sends `<C:calendar/>`,
+ * Radicale sends `<calendar/>`, and both must be recognized.
+ */
+function parseResourceTypes(xml: string): string[] {
+  if (!xml || typeof DOMParser === 'undefined') return []
+  try {
+    const doc = new DOMParser().parseFromString(xml, 'application/xml')
+    const types: string[] = []
+    for (const el of Array.from(doc.getElementsByTagName('*'))) {
+      if (el.localName !== 'resourcetype') continue
+      for (const child of Array.from(el.children)) types.push(child.localName.toLowerCase())
+    }
+    return types
+  } catch {
+    return []
+  }
+}
+
+/**
  * Probe /.well-known/caldav and follow the redirect to the real CalDAV base.
  * Returns null if the server doesn't support well-known (e.g. returns 404).
  */
@@ -407,21 +455,9 @@ export async function probeConnection(
       )
     }
     validateCustomHeaders(customHeaders, proxyUrl)
-    let baseUrl = await discoverServerUrl(serverUrl, proxyUrl ?? undefined)
-    // When a gateway protects /.well-known, discovery falls back to the
-    // entered URL. Keep its trailing slash: some DAV servers require it.
-    if (Object.keys(customHeaders).length && baseUrl === serverUrl.replace(/\/$/, '')) {
-      baseUrl = serverUrl
-    }
-    if (
-      Object.keys(customHeaders).length &&
-      new URL(baseUrl).origin !== new URL(serverUrl).origin
-    ) {
-      throw new Error('DAV discovery changed origin. Enter the final DAV URL directly.')
-    }
     const directFetch = createDirectDavFetch(serverUrl, customHeaders)
 
-    const attempt = async (url: string): Promise<{ ok: boolean; status: number }> => {
+    const attempt = async (url: string): Promise<DavProbeResult> => {
       const headers: Record<string, string> = {
         'Content-Type': 'application/xml',
         Depth: '0',
@@ -436,6 +472,7 @@ export async function probeConnection(
             <d:propfind xmlns:d="DAV:">
               <d:prop>
                 <d:displayname/>
+                <d:resourcetype/>
               </d:prop>
             </d:propfind>`,
         ...(authMode === 'browser-session' ? { credentials: 'include' as const } : {}),
@@ -446,25 +483,62 @@ export async function probeConnection(
         : await directFetch(url, init)
 
       // 207 Multi-Status is the success case for PROPFIND.
-      return { ok: response.ok || response.status === 207, status: response.status }
+      const ok = response.ok || response.status === 207
+      let resourcetypes: string[] = []
+      // Some test doubles omit the body; only parse when it is available.
+      if (ok && typeof response.text === 'function') {
+        try {
+          resourcetypes = parseResourceTypes(await response.text())
+        } catch {
+          resourcetypes = []
+        }
+      }
+      return { ok, status: response.status, resourcetypes }
     }
 
-    let result = await attempt(baseUrl)
+    // A URL that points straight at a calendar or addressbook collection must
+    // be honored as-is. Well-known discovery replaces its path with the
+    // server's DAV root, which would silently retarget the account at the
+    // authenticated principal's whole calendar home (all its calendars).
+    const enteredProbe = hasNonRootPath(serverUrl) ? await attempt(serverUrl) : null
 
-    // Fallback: if the discovered URL fails, try the original base URL.
-    // This handles cases like Radicale where the well-known redirect chain
-    // ends at the web UI (/.web/) instead of the CalDAV endpoint (/).
-    if (!result.ok) {
-      const normalizedBase = serverUrl.replace(/\/$/, '')
-      if (baseUrl !== normalizedBase) {
-        console.log(
-          '[CalDAV] Probe: discovered URL failed (' + result.status + '), trying base URL:',
-          normalizedBase
-        )
-        const fallback = await attempt(normalizedBase)
-        if (fallback.ok) {
-          baseUrl = normalizedBase
-          result = fallback
+    let baseUrl: string
+    let result: DavProbeResult
+    if (enteredProbe?.ok && isConcreteCollection(enteredProbe.resourcetypes)) {
+      baseUrl = serverUrl
+      result = enteredProbe
+      console.log('[CalDAV] Probe: using entered collection URL directly:', baseUrl)
+    } else {
+      baseUrl = await discoverServerUrl(serverUrl, proxyUrl ?? undefined)
+      // When a gateway protects /.well-known, discovery falls back to the
+      // entered URL. Keep its trailing slash: some DAV servers require it.
+      if (Object.keys(customHeaders).length && baseUrl === serverUrl.replace(/\/$/, '')) {
+        baseUrl = serverUrl
+      }
+      if (
+        Object.keys(customHeaders).length &&
+        new URL(baseUrl).origin !== new URL(serverUrl).origin
+      ) {
+        throw new Error('DAV discovery changed origin. Enter the final DAV URL directly.')
+      }
+
+      result = await attempt(baseUrl)
+
+      // Fallback: if the discovered URL fails, try the original base URL.
+      // This handles cases like Radicale where the well-known redirect chain
+      // ends at the web UI (/.web/) instead of the CalDAV endpoint (/).
+      if (!result.ok) {
+        const normalizedBase = serverUrl.replace(/\/$/, '')
+        if (baseUrl !== normalizedBase) {
+          console.log(
+            '[CalDAV] Probe: discovered URL failed (' + result.status + '), trying base URL:',
+            normalizedBase
+          )
+          const fallback = await attempt(normalizedBase)
+          if (fallback.ok) {
+            baseUrl = normalizedBase
+            result = fallback
+          }
         }
       }
     }

@@ -1,4 +1,4 @@
-import { createDAVClient } from 'tsdav'
+import { createDAVClient, type DAVAccount } from 'tsdav'
 import type {
   CalDAVCredentials,
   CalDAVCalendar,
@@ -290,6 +290,11 @@ export class CalDAVClient {
   // Populated on the first fetchCalendars() call and reused by findCalendarByUrl().
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private cachedCalendars: any[] = []
+  // When serverUrl points at a single collection (e.g. a shared
+  // .../chair/calendar/), tsdav must list that collection instead of walking
+  // current-user-principal -> calendar-home-set (which returns the logged-in
+  // principal's own calendars). See resolveCollectionAccount().
+  private collectionAccount: DAVAccount | null = null
   private serverUrl: string
   private proxyUrl: string | null
   private credentials: CalDAVCredentials
@@ -362,6 +367,84 @@ export class CalDAVClient {
       authFunction,
       fetch: this.proxyFetch,
     })
+    await this.resolveCollectionAccount()
+  }
+
+  /**
+   * If `serverUrl` names a single calendar collection rather than a server or
+   * principal base, build an account whose `homeUrl` is that collection.
+   * tsdav's default account discovery walks current-user-principal ->
+   * calendar-home-set and lists the whole home, silently ignoring the
+   * collection the URL points at (e.g. a calendar shared with, but not owned
+   * by, the authenticated principal).
+   *
+   * Detection is a Depth-0 PROPFIND for resourcetype. A server root or a
+   * `/dav.php` base answers `collection` without `calendar`, so those keep the
+   * normal home discovery.
+   */
+  private async resolveCollectionAccount(): Promise<void> {
+    this.collectionAccount = null
+    try {
+      if (new URL(this.serverUrl).pathname.replace(/\/$/, '') === '') return
+    } catch {
+      return
+    }
+    try {
+      const resourcetypes = await this.propfindResourceTypes(this.serverUrl)
+      if (!resourcetypes.includes('calendar')) return
+      const collectionUrl = this.serverUrl.replace(/\/$/, '') + '/'
+      this.collectionAccount = await this.getClient().createAccount({
+        account: {
+          serverUrl: collectionUrl,
+          accountType: 'caldav',
+          homeUrl: collectionUrl,
+        },
+      })
+    } catch {
+      this.collectionAccount = null
+    }
+  }
+
+  /** Depth-0 PROPFIND for DAV:resourcetype child names (lowercased). */
+  private async propfindResourceTypes(url: string): Promise<string[]> {
+    const body = `<?xml version="1.0" encoding="UTF-8"?>
+<d:propfind xmlns:d="DAV:">
+  <d:prop>
+    <d:resourcetype/>
+  </d:prop>
+</d:propfind>`
+    const response = await this.proxyFetch(url, {
+      method: 'PROPFIND',
+      headers: {
+        ...this.authOnlyHeaders(),
+        'Content-Type': 'application/xml; charset=utf-8',
+        Depth: '0',
+      },
+      body,
+    })
+    if (!response.ok && response.status !== 207) return []
+    const doc = this.parseXmlDocument(await response.text())
+    const types: string[] = []
+    for (const el of Array.from(doc.getElementsByTagName('*'))) {
+      if (el.localName !== 'resourcetype') continue
+      for (const child of Array.from(el.children)) types.push(child.localName.toLowerCase())
+    }
+    return types
+  }
+
+  /**
+   * tsdav's fetchCalendars against the account's home. When this account was
+   * pointed at a single collection (see `resolveCollectionAccount`), pass that
+   * account so tsdav lists the collection instead of the principal's home.
+   */
+  private async fetchDavCalendars(
+    options: Parameters<Awaited<ReturnType<typeof createDAVClient>>['fetchCalendars']>[0] = {}
+  ): Promise<Awaited<ReturnType<Awaited<ReturnType<typeof createDAVClient>>['fetchCalendars']>>> {
+    const client = this.getClient()
+    return client.fetchCalendars({
+      ...options,
+      ...(this.collectionAccount ? { account: this.collectionAccount } : {}),
+    })
   }
 
   private withAuthHeaders(headers: Record<string, string>): Record<string, string> {
@@ -384,12 +467,11 @@ export class CalDAVClient {
     if (!navigator.onLine) {
       throw new Error('No network connection. Please check your internet connection.')
     }
-    const client = this.getClient()
     // tsdav's defaults are replaced wholesale when `props` is passed, so spell
     // them out and add the Phase 4 extras: current-user-privilege-set (readOnly),
     // cs:subscribed and cs:calendar-order. `projectedProps` carries the raw
     // parsed extras onto the returned calendar objects.
-    const davCalendars = await client.fetchCalendars({
+    const davCalendars = await this.fetchDavCalendars({
       props: {
         'c:calendar-description': {},
         'c:calendar-timezone': {},
@@ -467,8 +549,7 @@ export class CalDAVClient {
   private async findCalendarByUrl(calendarUrl: string) {
     // Lazily populate cache on first use after connect()
     if (this.cachedCalendars.length === 0) {
-      const client = this.getClient()
-      this.cachedCalendars = await client.fetchCalendars()
+      this.cachedCalendars = await this.fetchDavCalendars()
     }
 
     const calendar = this.cachedCalendars.find((c) => {
@@ -1015,8 +1096,7 @@ export class CalDAVClient {
   }
 
   private async findCalendarHomeFromCalendars(): Promise<string | null> {
-    const client = this.getClient()
-    const calendars = await client.fetchCalendars()
+    const calendars = await this.fetchDavCalendars()
 
     if (calendars.length === 0 || !calendars[0].url) {
       return null
@@ -1634,7 +1714,7 @@ export class CalDAVClient {
         console.log('[SettingsSync] putSettingsEvent: creating new event')
       const client = this.getClient()
       // Find the settings calendar object for tsdav
-      const calendars = await client.fetchCalendars()
+      const calendars = await this.fetchDavCalendars()
       if (useSettingsStore.getState().caldavDebugMode)
         console.log('[SettingsSync] putSettingsEvent: found', calendars.length, 'calendars')
       const settingsCal = calendars.find((c) => {
