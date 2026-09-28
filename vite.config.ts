@@ -58,11 +58,23 @@ export default defineConfig({
     {
       name: 'calino-content-security-policy',
       enforce: 'pre',
-      transformIndexHtml: (html) =>
-        html.replace(
-          '__CALINO_CONTENT_SECURITY_POLICY__',
-          contentSecurityPolicy(allowHttpConnections)
-        ),
+      // `order: 'pre'` makes this run before Vite's own asset-URL rewriting.
+      // The plugin-level `enforce` does not order `transformIndexHtml` hooks
+      // (see Vite's `resolveHtmlTransforms`), so set the hook order explicitly.
+      transformIndexHtml: {
+        order: 'pre',
+        handler: (html) =>
+          html
+            .replace(
+              '__CALINO_CONTENT_SECURITY_POLICY__',
+              contentSecurityPolicy(allowHttpConnections)
+            )
+            // Root-absolute `/foo` references are only rewritten by Vite when
+            // it finds `foo` in `public/`. Substituting the known base path
+            // here keeps static references rooted under the deployed subpath
+            // (Vite then leaves the resulting non-public URL untouched).
+            .replaceAll('__CALINO_BASE_PATH__', calinoBasePath),
+      },
     },
     react(),
     nodePolyfills(),
