@@ -3,11 +3,20 @@ import { isMasterEncryptedData, type MasterEncryptedData } from './crypto'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+export type PreconfiguredAuthMode = 'basic' | 'browser-session'
+
 export interface PreconfiguredAccount {
   name: string
-  url: MasterEncryptedData
-  username: MasterEncryptedData
-  password: MasterEncryptedData
+  /**
+   * `browser-session` accounts authenticate with cookies the browser already
+   * holds (e.g. an Authelia session in front of the DAV server), so they carry
+   * no credentials: `url` is a plain string and `username`/`password` are
+   * absent. `basic` (the default) keeps the encrypted credential fields.
+   */
+  authMode?: PreconfiguredAuthMode
+  url: MasterEncryptedData | string
+  username?: MasterEncryptedData
+  password?: MasterEncryptedData
   headers?: Record<string, MasterEncryptedData>
 }
 
@@ -38,13 +47,42 @@ const MasterEncryptedDataSchema = z.custom<MasterEncryptedData>(
   { message: 'Expected MasterEncryptedData shape' }
 )
 
-const PreconfiguredAccountSchema = z.object({
-  name: z.string().trim().min(1),
-  url: MasterEncryptedDataSchema,
-  username: MasterEncryptedDataSchema,
-  password: MasterEncryptedDataSchema,
-  headers: z.record(z.string(), MasterEncryptedDataSchema).optional(),
-})
+const PreconfiguredAccountSchema = z
+  .object({
+    name: z.string().trim().min(1),
+    authMode: z.enum(['basic', 'browser-session']).optional(),
+    url: z.union([MasterEncryptedDataSchema, z.string().trim().min(1)]),
+    username: MasterEncryptedDataSchema.optional(),
+    password: MasterEncryptedDataSchema.optional(),
+    headers: z.record(z.string(), MasterEncryptedDataSchema).optional(),
+  })
+  .superRefine((account, ctx) => {
+    if (account.authMode === 'browser-session') {
+      // Nothing to decrypt: the URL is a plain string and cookies carry auth.
+      if (typeof account.url !== 'string') {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['url'],
+          message: 'browser-session accounts must use a plaintext url',
+        })
+      }
+      return
+    }
+    if (typeof account.url !== 'object') {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['url'],
+        message: 'basic accounts must use an encrypted url',
+      })
+    }
+    if (!account.username || !account.password) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['username'],
+        message: 'basic accounts must include encrypted username and password',
+      })
+    }
+  })
 
 const PreconfiguredWebcalSchema = z.object({
   name: z.string().trim().min(1),

@@ -1,11 +1,12 @@
 import { create } from 'zustand'
 import { validateCustomHeaders } from '../features/caldav/client/customHeaders'
-import { loadConfig, type CalinoConfig } from '../lib/configLoader'
+import { loadConfig, type CalinoConfig, type PreconfiguredAccount } from '../lib/configLoader'
 import {
   decryptWithMasterPassword,
   encryptPassword,
   decryptPassword,
   isEncryptedPassword,
+  type MasterEncryptedData,
 } from '../lib/crypto'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -89,6 +90,19 @@ async function setStoredMasterPassword(password: string | null): Promise<void> {
 
 // ─── Store ───────────────────────────────────────────────────────────────────
 
+/**
+ * Browser-session accounts hold no secrets: the browser already carries the
+ * session cookie, so there is nothing to decrypt and no username/password.
+ */
+function browserSessionCredential(account: PreconfiguredAccount): DecryptedCredential {
+  return {
+    url: account.url as string,
+    username: '',
+    password: '',
+    authMode: 'browser-session',
+  }
+}
+
 export const useConfigStore = create<ConfigState>((set, get) => ({
   // Initial state
   config: null,
@@ -128,6 +142,18 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
     if (storedPassword) {
       await get().unlock(storedPassword)
     }
+
+    // A config made only of browser-session accounts has no encrypted material,
+    // so it unlocks without a master password and connects on first load.
+    const needsMasterPassword =
+      config.accounts.some((account) => account.authMode !== 'browser-session') ||
+      config.webcalSubscriptions.length > 0
+    if (!needsMasterPassword && !get().isUnlocked) {
+      set({
+        decryptedCredentials: config.accounts.map(browserSessionCredential),
+        isUnlocked: true,
+      })
+    }
   },
 
   /**
@@ -145,10 +171,15 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
       const decrypted: DecryptedCredential[] = []
 
       for (const account of config.accounts) {
+        if (account.authMode === 'browser-session') {
+          decrypted.push(browserSessionCredential(account))
+          continue
+        }
+
         const [url, username, password] = await Promise.all([
-          decryptWithMasterPassword(account.url, masterPassword),
-          decryptWithMasterPassword(account.username, masterPassword),
-          decryptWithMasterPassword(account.password, masterPassword),
+          decryptWithMasterPassword(account.url as MasterEncryptedData, masterPassword),
+          decryptWithMasterPassword(account.username as MasterEncryptedData, masterPassword),
+          decryptWithMasterPassword(account.password as MasterEncryptedData, masterPassword),
         ])
 
         const customHeaders: Record<string, string> = {}
@@ -159,6 +190,7 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
           url,
           username,
           password,
+          authMode: 'basic',
           customHeaders: validateCustomHeaders(customHeaders),
         })
       }
