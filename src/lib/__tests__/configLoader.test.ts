@@ -210,7 +210,12 @@ describe('configLoader', () => {
       originalGlobal.__CALINO_CONFIG__ = {
         version: 1,
         accounts: validConfig.accounts,
-        settings: { defaultStartTime: '18:00', defaultAllDay: true, defaultReminderMinutes: null },
+        settings: {
+          defaultStartTime: '18:00',
+          defaultAllDay: true,
+          defaultReminderMinutes: null,
+          defaultDuration: 90,
+        },
       }
 
       const config = await loadConfig()
@@ -218,6 +223,7 @@ describe('configLoader', () => {
         defaultStartTime: '18:00',
         defaultAllDay: true,
         defaultReminderMinutes: null,
+        defaultDuration: 90,
       })
     })
 
@@ -237,6 +243,18 @@ describe('configLoader', () => {
 
       const config = await loadConfig()
       expect(config!.settings).toBeUndefined()
+    })
+
+    it('drops the block for a non-positive or fractional duration', async () => {
+      for (const defaultDuration of [0, -30, 45.5]) {
+        originalGlobal.__CALINO_CONFIG__ = {
+          version: 1,
+          accounts: validConfig.accounts,
+          settings: { defaultDuration },
+        }
+        const config = await loadConfig()
+        expect(config!.settings).toBeUndefined()
+      }
     })
 
     it('strips unknown settings fields', async () => {

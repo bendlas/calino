@@ -58,13 +58,19 @@ describe('settingsStore baked config defaults', () => {
     delete globalWithConfig.__CALINO_CONFIG__
   })
 
-  it('seeds start time, all-day, and a None reminder from config', async () => {
+  it('seeds duration, start time, all-day, and a None reminder from config', async () => {
     const state = await loadSettingsWith({
       version: 1,
       accounts: [],
-      settings: { defaultStartTime: '18:00', defaultAllDay: true, defaultReminderMinutes: null },
+      settings: {
+        defaultDuration: 90,
+        defaultStartTime: '18:00',
+        defaultAllDay: true,
+        defaultReminderMinutes: null,
+      },
     })
 
+    expect(state.defaultDuration).toBe(90)
     expect(state.defaultStartTime).toBe('18:00')
     expect(state.defaultAllDay).toBe(true)
     expect(state.defaultReminderMinutes).toBeNull()
@@ -73,6 +79,7 @@ describe('settingsStore baked config defaults', () => {
   it('falls back to the built-in defaults when nothing is baked', async () => {
     const state = await loadSettingsWith(null)
 
+    expect(state.defaultDuration).toBe(60)
     expect(state.defaultStartTime).toBe('09:00')
     expect(state.defaultAllDay).toBe(false)
     expect(state.defaultReminderMinutes).toBe(15)

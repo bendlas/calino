@@ -170,7 +170,7 @@ const DEFAULT_SETTINGS: UserSettings = {
   dateFormat: 'dd/MM/yyyy',
   timeFormat: '24h',
   firstDayOfWeek: getEuropeDefaultFirstDay(),
-  defaultDuration: 60,
+  defaultDuration: bakedSettings.defaultDuration ?? 60,
   defaultStartTime: bakedSettings.defaultStartTime ?? '09:00',
   defaultAllDay: bakedSettings.defaultAllDay ?? false,
   defaultView: config.defaultView,

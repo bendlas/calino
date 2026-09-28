@@ -41,6 +41,8 @@ export interface CalinoConfigSettings {
   defaultStartTime?: string
   /** Start new events on the clicked day as all-day instead of timed. */
   defaultAllDay?: boolean
+  /** Length in minutes of a new timed event. */
+  defaultDuration?: number
 }
 
 export interface CalinoConfig {
@@ -121,6 +123,7 @@ const CalinoConfigSettingsSchema = z.object({
     .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Expected a 24h HH:mm wall-clock time')
     .optional(),
   defaultAllDay: z.boolean().optional(),
+  defaultDuration: z.number().int().min(1).optional(),
 })
 
 /**
