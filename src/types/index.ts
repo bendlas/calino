@@ -358,6 +358,10 @@ export interface UserSettings {
   timeFormat: TimeFormat
   firstDayOfWeek: FirstDayOfWeek
   defaultDuration: DefaultDuration
+  /** `HH:mm` start time seeded into a new timed event's form. */
+  defaultStartTime: string
+  /** Seed new events on the clicked day as all-day instead of timed. */
+  defaultAllDay: boolean
   defaultView: ViewType
   showWeekNumbers: boolean
   showWeekNumbersInSidebar: boolean

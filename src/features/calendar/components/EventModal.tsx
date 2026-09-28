@@ -84,6 +84,8 @@ export function EventModal(): JSX.Element | null {
   const timeFormat = useSettingsStore((state) => state.timeFormat)
   const defaultDuration = useSettingsStore((state) => state.defaultDuration)
   const defaultReminderMinutes = useSettingsStore((state) => state.defaultReminderMinutes)
+  const defaultStartTime = useSettingsStore((state) => state.defaultStartTime)
+  const defaultAllDay = useSettingsStore((state) => state.defaultAllDay)
   const addEvent = useCalendarStore((state) => state.addEvent)
   const deleteEvent = useCalendarStore((state) => state.deleteEvent)
   const updateEvent = useCalendarStore((state) => state.updateEvent)
@@ -163,7 +165,9 @@ export function EventModal(): JSX.Element | null {
         compatibleCalendars,
         categories,
         defaultDuration,
-        defaultReminderMinutes
+        defaultReminderMinutes,
+        defaultStartTime,
+        defaultAllDay
       ),
     [
       isModalOpen,
@@ -175,6 +179,8 @@ export function EventModal(): JSX.Element | null {
       categories,
       defaultDuration,
       defaultReminderMinutes,
+      defaultStartTime,
+      defaultAllDay,
     ]
   )
 
@@ -506,7 +512,9 @@ export function EventModal(): JSX.Element | null {
         currentCalendars,
         currentCategories,
         useSettingsStore.getState().defaultDuration,
-        useSettingsStore.getState().defaultReminderMinutes
+        useSettingsStore.getState().defaultReminderMinutes,
+        useSettingsStore.getState().defaultStartTime,
+        useSettingsStore.getState().defaultAllDay
       )
 
       calendarTouchedRef.current = false

@@ -228,6 +228,16 @@
       "desc": "Aan welke agenda nieuwe gebeurtenissen worden toegevoegd",
       "ariaLabel": "Standaardagenda"
     },
+    "defaultStartTime": {
+      "label": "Standaard starttijd",
+      "desc": "Starttijd van een nieuwe getimede afspraak die wordt gemaakt door op een dag te klikken",
+      "ariaLabel": "Standaard starttijd"
+    },
+    "defaultAllDay": {
+      "label": "Standaard hele dag",
+      "desc": "Nieuwe afspraken als hele dag aanmaken in plaats van getimed",
+      "ariaLabel": "Standaard hele dag"
+    },
     "defaultReminder": {
       "label": "Standaardherinnering",
       "desc": "De herinnering die standaard aan nieuwe gebeurtenissen wordt toegevoegd",

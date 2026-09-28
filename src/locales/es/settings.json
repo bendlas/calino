@@ -228,6 +228,16 @@
       "desc": "Calendario al que se añaden los eventos nuevos",
       "ariaLabel": "Calendario predeterminado"
     },
+    "defaultStartTime": {
+      "label": "Hora de inicio predeterminada",
+      "desc": "Hora de inicio de un nuevo evento con hora al crearlo haciendo clic en un día",
+      "ariaLabel": "Hora de inicio predeterminada"
+    },
+    "defaultAllDay": {
+      "label": "Todo el día por defecto",
+      "desc": "Crear nuevos eventos como de todo el día en lugar de con hora",
+      "ariaLabel": "Todo el día por defecto"
+    },
     "defaultReminder": {
       "label": "Recordatorio predeterminado",
       "desc": "Recordatorio que se aplica inicialmente a los eventos nuevos",

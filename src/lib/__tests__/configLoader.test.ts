@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { loadConfig, resetConfigCache, type CalinoConfig } from '../configLoader'
+import { loadConfig, resetConfigCache, getBakedSettingsDefaults, type CalinoConfig } from '../configLoader'
 
 const validConfig: CalinoConfig = {
   version: 1,
@@ -202,6 +202,68 @@ describe('configLoader', () => {
       const config = await loadConfig()
       expect(config).not.toBeNull()
       expect(config!.webcalSubscriptions).toEqual([])
+    })
+  })
+
+  describe('settings defaults', () => {
+    it('returns a valid settings block alongside accounts', async () => {
+      originalGlobal.__CALINO_CONFIG__ = {
+        version: 1,
+        accounts: validConfig.accounts,
+        settings: { defaultStartTime: '18:00', defaultAllDay: true, defaultReminderMinutes: null },
+      }
+
+      const config = await loadConfig()
+      expect(config!.settings).toEqual({
+        defaultStartTime: '18:00',
+        defaultAllDay: true,
+        defaultReminderMinutes: null,
+      })
+    })
+
+    it('omits settings when the block is absent', async () => {
+      originalGlobal.__CALINO_CONFIG__ = validConfig
+
+      const config = await loadConfig()
+      expect(config!.settings).toBeUndefined()
+    })
+
+    it('drops the whole block when any field is malformed', async () => {
+      originalGlobal.__CALINO_CONFIG__ = {
+        version: 1,
+        accounts: validConfig.accounts,
+        settings: { defaultStartTime: '25:00', defaultAllDay: true },
+      }
+
+      const config = await loadConfig()
+      expect(config!.settings).toBeUndefined()
+    })
+
+    it('strips unknown settings fields', async () => {
+      originalGlobal.__CALINO_CONFIG__ = {
+        version: 1,
+        accounts: validConfig.accounts,
+        settings: { defaultAllDay: true, hypotheticalFutureSetting: 1 },
+      }
+
+      const config = await loadConfig()
+      expect(config!.settings).toEqual({ defaultAllDay: true })
+    })
+
+    it('getBakedSettingsDefaults reads synchronously and ignores bad input', () => {
+      originalGlobal.__CALINO_CONFIG__ = {
+        version: 1,
+        accounts: validConfig.accounts,
+        settings: { defaultReminderMinutes: null },
+      }
+      expect(getBakedSettingsDefaults()).toEqual({ defaultReminderMinutes: null })
+
+      originalGlobal.__CALINO_CONFIG__ = {
+        version: 1,
+        accounts: validConfig.accounts,
+        settings: { defaultStartTime: 'nope' },
+      }
+      expect(getBakedSettingsDefaults()).toEqual({})
     })
   })
 })

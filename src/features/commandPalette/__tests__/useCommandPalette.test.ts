@@ -131,6 +131,8 @@ vi.mock('@/store/settingsStore', () => ({
       timeFormat: '12h',
       firstDayOfWeek: 0,
       defaultDuration: 60,
+      defaultStartTime: '09:00',
+      defaultAllDay: false,
       defaultView: 'month',
       showWeekNumbers: false,
       showWeekNumbersInSidebar: false,

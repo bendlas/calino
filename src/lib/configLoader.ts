@@ -28,10 +28,26 @@ export interface PreconfiguredWebcal {
   proxyUrl?: string
 }
 
+/**
+ * Settings a self-hosted deployment can bake into `calino.config.json` to seed
+ * fresh browsers. These are the *defaults* only: a user who changes a value in
+ * Settings keeps their choice in localStorage (persisted state wins over the
+ * seeded default), and every field stays optional.
+ */
+export interface CalinoConfigSettings {
+  /** Reminder seeded into a new event's form. `null` means "None". */
+  defaultReminderMinutes?: number | null
+  /** `HH:mm` start time for a new timed event. */
+  defaultStartTime?: string
+  /** Start new events on the clicked day as all-day instead of timed. */
+  defaultAllDay?: boolean
+}
+
 export interface CalinoConfig {
   version: number
   accounts: PreconfiguredAccount[]
   webcalSubscriptions: PreconfiguredWebcal[]
+  settings?: CalinoConfigSettings
 }
 
 // ─── Global constant injected at build time ──────────────────────────────────
@@ -95,7 +111,39 @@ const CalinoConfigEnvelopeSchema = z.object({
   version: z.literal(1),
   accounts: z.array(z.unknown()),
   webcalSubscriptions: z.array(z.unknown()).optional(),
+  settings: z.unknown().optional(),
 })
+
+const CalinoConfigSettingsSchema = z.object({
+  defaultReminderMinutes: z.union([z.number().int().min(0), z.null()]).optional(),
+  defaultStartTime: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Expected a 24h HH:mm wall-clock time')
+    .optional(),
+  defaultAllDay: z.boolean().optional(),
+})
+
+/**
+ * Validate the baked `settings` block. Unknown fields are stripped (forward
+ * compatible); a malformed block is ignored wholesale rather than applied
+ * partially, so a typo cannot half-seed the defaults.
+ */
+function parseSettings(raw: unknown): CalinoConfigSettings | undefined {
+  const parsed = CalinoConfigSettingsSchema.safeParse(raw)
+  if (!parsed.success) return undefined
+  return Object.keys(parsed.data).length > 0 ? parsed.data : undefined
+}
+
+/**
+ * Read the baked settings defaults synchronously, straight from the build-time
+ * global. `settingsStore` needs them while its module initialises (to build
+ * `DEFAULT_SETTINGS`), before the async `loadConfig()` ever runs. Mirrors the
+ * existing pattern of reading the compile-time `config` for `defaultView`.
+ */
+export function getBakedSettingsDefaults(): CalinoConfigSettings {
+  if (typeof __CALINO_CONFIG__ === 'undefined' || __CALINO_CONFIG__ === null) return {}
+  return parseSettings((__CALINO_CONFIG__ as Record<string, unknown>).settings) ?? {}
+}
 
 /**
  * Load self-hosted config.
@@ -148,7 +196,13 @@ export async function loadConfig(): Promise<CalinoConfig | null> {
     return null
   }
 
-  const config: CalinoConfig = { version: 1, accounts, webcalSubscriptions }
+  const settings = parseSettings(envelope.data.settings)
+  const config: CalinoConfig = {
+    version: 1,
+    accounts,
+    webcalSubscriptions,
+    ...(settings ? { settings } : {}),
+  }
   cachedConfig = config
   return config
 }

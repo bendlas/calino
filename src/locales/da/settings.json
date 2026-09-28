@@ -224,6 +224,16 @@
       "desc": "Den kalender, som nye begivenheder tilføjes til",
       "ariaLabel": "Standardkalender"
     },
+    "defaultStartTime": {
+      "label": "Standardstarttid",
+      "desc": "Starttidspunkt for en ny tidsbestemt begivenhed, når den oprettes ved at klikke på en dag",
+      "ariaLabel": "Standardstarttid"
+    },
+    "defaultAllDay": {
+      "label": "Hele dagen som standard",
+      "desc": "Opret nye begivenheder som hele dagen i stedet for tidsbestemte",
+      "ariaLabel": "Hele dagen som standard"
+    },
     "defaultReminder": {
       "label": "Standardpåmindelse",
       "desc": "Påmindelsen, som nye begivenheder starter med",

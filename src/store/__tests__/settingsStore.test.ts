@@ -15,6 +15,8 @@ describe('settingsStore', () => {
     expect(settings.timeFormat).toBe('24h')
     expect(settings.firstDayOfWeek).toBe(1)
     expect(settings.defaultDuration).toBe(60)
+    expect(settings.defaultStartTime).toBe('09:00')
+    expect(settings.defaultAllDay).toBe(false)
     expect(settings.defaultView).toBe('month')
     expect(settings.showWeekNumbers).toBe(true)
     expect(settings.eventDensity).toBe('comfortable')

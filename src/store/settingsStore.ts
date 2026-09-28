@@ -16,6 +16,7 @@ import type {
   AdjustableFontFamily,
 } from '@/types'
 import { getBrowserLanguage } from '@/lib/languages'
+import { getBakedSettingsDefaults } from '@/lib/configLoader'
 import { config, DEFAULT_CALENDAR_COLOR, EVENT_COLORS as _EVENT_COLORS_FROM_CONFIG } from '@/config'
 import { ALL_VIEWS, DEFAULT_DIVIDER_AFTER } from '@/features/calendar/viewRoutes'
 
@@ -156,6 +157,10 @@ export function normalizeAdjustableTheme(
   }
 }
 
+// Defaults a self-hosted deployment may bake into `calino.config.json`. Only
+// consulted while building the initial state; a persisted value always wins.
+const bakedSettings = getBakedSettingsDefaults()
+
 const DEFAULT_SETTINGS: UserSettings = {
   language: getBrowserLanguage(),
   timezone: getBrowserTimezone(),
@@ -166,12 +171,17 @@ const DEFAULT_SETTINGS: UserSettings = {
   timeFormat: '24h',
   firstDayOfWeek: getEuropeDefaultFirstDay(),
   defaultDuration: 60,
+  defaultStartTime: bakedSettings.defaultStartTime ?? '09:00',
+  defaultAllDay: bakedSettings.defaultAllDay ?? false,
   defaultView: config.defaultView,
   showWeekNumbers: true,
   showWeekNumbersInSidebar: false,
   eventDensity: 'comfortable',
   mapProvider: 'google',
-  defaultReminderMinutes: 15,
+  // `null` is a valid baked value ("None"), so test presence rather than
+  // truthiness — `??` would turn it back into the 15-minute fallback.
+  defaultReminderMinutes:
+    bakedSettings.defaultReminderMinutes !== undefined ? bakedSettings.defaultReminderMinutes : 15,
   defaultEventColor: DEFAULT_CALENDAR_COLOR,
   enableDesktopNotifications: true,
   // Off by default: it needs a runtime calendar permission, so it has to be a

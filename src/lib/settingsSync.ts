@@ -57,6 +57,8 @@ export const SYNCABLE_SETTINGS: (keyof UserSettings)[] = [
   'timeFormat',
   'firstDayOfWeek',
   'defaultDuration',
+  'defaultStartTime',
+  'defaultAllDay',
   'defaultView',
   'showWeekNumbers',
   'showWeekNumbersInSidebar',

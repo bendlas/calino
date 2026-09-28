@@ -228,6 +228,16 @@
       "desc": "Calendrier auquel ajouter les nouveaux événements",
       "ariaLabel": "Calendrier par défaut"
     },
+    "defaultStartTime": {
+      "label": "Heure de début par défaut",
+      "desc": "Heure de début d'un nouvel événement horaire créé en cliquant sur un jour",
+      "ariaLabel": "Heure de début par défaut"
+    },
+    "defaultAllDay": {
+      "label": "Journée entière par défaut",
+      "desc": "Créer les nouveaux événements en journée entière plutôt qu'à une heure précise",
+      "ariaLabel": "Journée entière par défaut"
+    },
     "defaultReminder": {
       "label": "Rappel par défaut",
       "desc": "Rappel ajouté par défaut aux nouveaux événements",

@@ -114,6 +114,18 @@ function pickDefaultCalendar<T extends { id: string; isDefault: boolean; readOnl
   )
 }
 
+/**
+ * Has the wall-clock `HH:mm` already passed today? Used to decide whether the
+ * preferred default start time is still usable for a click on today, or should
+ * be rounded forward to avoid creating an event in the past.
+ */
+function isTimeInPast(hhmm: string): boolean {
+  const [hours, minutes] = hhmm.split(':').map(Number)
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return false
+  const now = new Date()
+  return now.getHours() * 60 + now.getMinutes() > hours * 60 + minutes
+}
+
 export function getInitialFormState(
   isModalOpen: boolean,
   selectedEventId: string | null,
@@ -123,9 +135,11 @@ export function getInitialFormState(
   calendars: { id: string; isDefault: boolean; readOnly?: boolean }[],
   allCategories: { id: string; name: string }[],
   defaultDuration: number = 60,
-  defaultReminderMinutes: number | null = null
+  defaultReminderMinutes: number | null = null,
+  defaultStartTime: string = '09:00',
+  defaultAllDay: boolean = false
 ): InitialFormStateWithMeta {
-  const defaultEndTime = addMinutesToTimeStr('09:00', defaultDuration)
+  const defaultEndTime = addMinutesToTimeStr(defaultStartTime, defaultDuration)
   const defaultReminders = makeDefaultReminders(defaultReminderMinutes)
 
   // Early return when modal is closed — skip all computation
@@ -133,7 +147,9 @@ export function getInitialFormState(
     const defaultCalendar = pickDefaultCalendar(calendars)
     return makeDefaultState({
       calendarId: defaultCalendar?.id || '',
+      startTime: defaultStartTime,
       endTime: defaultEndTime,
+      isAllDay: defaultAllDay,
       reminders: defaultReminders,
     })
   }
@@ -244,18 +260,19 @@ export function getInitialFormState(
       const hasTime = selectedDate.includes('T')
       const dateStr = hasTime ? selectedDate.split('T')[0] : selectedDate
 
-      let startTimeVal = '09:00'
+      let startTimeVal = defaultStartTime
       let endTimeVal = defaultEndTime
 
       if (hasTime) {
-        const time = selectedDate.split('T')[1]?.substring(0, 5) || '09:00'
+        const time = selectedDate.split('T')[1]?.substring(0, 5) || defaultStartTime
         startTimeVal = time
         endTimeVal = addMinutesToTimeStr(time, defaultDuration)
       } else {
-        // No specific time - smart default only applies for TODAY
+        // No specific time. The preferred start time is used as-is, except when
+        // clicking *today* and that time has already passed — then round up to
+        // the next hour so the new event isn't born in the past.
         const todayStr = format(new Date(), 'yyyy-MM-dd')
-        if (dateStr === todayStr) {
-          // Round up to next hour, then apply the default duration
+        if (dateStr === todayStr && isTimeInPast(defaultStartTime)) {
           const now = new Date()
           let hours = now.getHours()
           const mins = now.getMinutes()
@@ -265,7 +282,6 @@ export function getInitialFormState(
           startTimeVal = `${pad2(hours)}:00`
           endTimeVal = addMinutesToTimeStr(startTimeVal, defaultDuration)
         }
-        // else: use default 09:00 + default duration
       }
 
       if (selectedEndDate && selectedEndDate.includes('T')) {
@@ -303,6 +319,21 @@ export function getInitialFormState(
         })
       }
 
+      // A day click with all-day seeding on becomes a single all-day event.
+      // A click that carried an explicit time (`hasTime`) stays timed.
+      if (defaultAllDay && !hasTime) {
+        return makeDefaultState({
+          calendarId: defaultCalendar?.id || '',
+          startDate: dateStr,
+          startTime: '00:00',
+          endDate: dateStr,
+          endTime: '23:59',
+          isAllDay: true,
+          endOnDate: dateStr,
+          reminders: defaultReminders,
+        })
+      }
+
       return makeDefaultState({
         calendarId: defaultCalendar?.id || '',
         startDate: dateStr,
@@ -317,7 +348,9 @@ export function getInitialFormState(
 
   return makeDefaultState({
     calendarId: defaultCalendar?.id || '',
+    startTime: defaultStartTime,
     endTime: defaultEndTime,
+    isAllDay: defaultAllDay,
     reminders: defaultReminders,
   })
 }

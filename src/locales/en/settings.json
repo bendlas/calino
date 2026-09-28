@@ -228,6 +228,16 @@
       "desc": "Which calendar new events are added to",
       "ariaLabel": "Default calendar"
     },
+    "defaultStartTime": {
+      "label": "Default Start Time",
+      "desc": "Start time of a new timed event created by clicking a day",
+      "ariaLabel": "Default start time"
+    },
+    "defaultAllDay": {
+      "label": "All-day by Default",
+      "desc": "Create new events as all-day instead of timed",
+      "ariaLabel": "All-day by default"
+    },
     "defaultReminder": {
       "label": "Default Reminder",
       "desc": "The reminder new events start with",

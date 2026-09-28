@@ -20,6 +20,8 @@ export function CalendarSettings({ searchControl }: { searchControl?: JSX.Elemen
   const fadePastDaysInAgenda = useSettingsStore((s) => s.fadePastDaysInAgenda)
   const defaultDuration = useSettingsStore((s) => s.defaultDuration)
   const defaultReminderMinutes = useSettingsStore((s) => s.defaultReminderMinutes)
+  const defaultStartTime = useSettingsStore((s) => s.defaultStartTime)
+  const defaultAllDay = useSettingsStore((s) => s.defaultAllDay)
   const secondaryTimezoneEnabled = useSettingsStore((s) => s.secondaryTimezoneEnabled)
   const secondaryTimezone = useSettingsStore((s) => s.secondaryTimezone)
   const secondaryTimezoneLabel = useSettingsStore((s) => s.secondaryTimezoneLabel)
@@ -506,6 +508,30 @@ export function CalendarSettings({ searchControl }: { searchControl?: JSX.Elemen
         <div
           className={styles.row}
           data-component="setting-row"
+          data-setting="default-start-time"
+          data-value={defaultStartTime}
+        >
+          <div className={styles.rowInfo}>
+            <div className={styles.rowLabel}>{t('calendar.defaultStartTime.label')}</div>
+            <div className={styles.rowDesc}>{t('calendar.defaultStartTime.desc')}</div>
+          </div>
+          <div className={styles.rowControl}>
+            <input
+              type="time"
+              className={styles.select}
+              value={defaultStartTime}
+              aria-label={t('calendar.defaultStartTime.ariaLabel')}
+              onChange={(e) => {
+                if (e.target.value) {
+                  updateSettings({ defaultStartTime: e.target.value.slice(0, 5) })
+                }
+              }}
+            />
+          </div>
+        </div>
+        <div
+          className={styles.row}
+          data-component="setting-row"
           data-setting="default-calendar"
           data-value={defaultCalendar?.id || ''}
         >
@@ -530,6 +556,33 @@ export function CalendarSettings({ searchControl }: { searchControl?: JSX.Elemen
                 </option>
               ))}
             </select>
+          </div>
+        </div>
+        <div
+          className={styles.row}
+          data-component="setting-row"
+          data-setting="default-all-day"
+          data-value={String(defaultAllDay)}
+        >
+          <div className={styles.rowInfo}>
+            <div className={styles.rowLabel}>{t('calendar.defaultAllDay.label')}</div>
+            <div className={styles.rowDesc}>{t('calendar.defaultAllDay.desc')}</div>
+          </div>
+          <div className={styles.rowControl}>
+            <label
+              className={styles.toggle}
+              data-component="toggle"
+              data-setting="default-all-day"
+            >
+              <input
+                type="checkbox"
+                checked={defaultAllDay}
+                aria-label={t('calendar.defaultAllDay.ariaLabel')}
+                onChange={() => updateSettings({ defaultAllDay: !defaultAllDay })}
+              />
+              <span className={styles.pill} />
+              <span className={styles.knob} />
+            </label>
           </div>
         </div>
         <div
