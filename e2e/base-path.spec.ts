@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { clearState } from './fixtures/localstorage'
+import { clearState, STORAGE_KEYS } from './fixtures/localstorage'
 
 const configuredBasePath = process.env.CALINO_BASE_PATH
 const isNonRootBasePath =
@@ -31,5 +31,32 @@ test.describe('base path', () => {
     await page.goto(new URL('year', baseAppUrl).toString())
     await page.locator('[data-component="brand-home"]').click()
     await expect(page).toHaveURL(new RegExp(`${escapedBasePath}month$`))
+  })
+
+  test('onboarding demo data loads sample files from the configured base path', async ({
+    page,
+    baseURL,
+  }) => {
+    await clearState(page)
+    await page.addInitScript(({ settingsKey }: { settingsKey: string }) => {
+      const raw = localStorage.getItem(settingsKey)
+      const parsed = raw ? JSON.parse(raw) : { state: {}, version: 1 }
+      parsed.state = { ...(parsed.state ?? {}), hasCompletedOnboarding: false }
+      localStorage.setItem(settingsKey, JSON.stringify(parsed))
+    }, { settingsKey: STORAGE_KEYS.settings })
+
+    const basePath = configuredBasePath as string
+    const baseAppUrl = new URL(basePath, baseURL).toString()
+    const sampleEventsPath = new URL('sample-events.ics', baseAppUrl).pathname
+    const observedRequests: string[] = []
+
+    page.on('request', (request) => {
+      const pathname = new URL(request.url()).pathname
+      if (pathname.endsWith('/sample-events.ics')) observedRequests.push(pathname)
+    })
+
+    await page.goto(baseAppUrl)
+    await page.locator('[data-component="demo-button"]').click()
+    await expect.poll(() => observedRequests).toContain(sampleEventsPath)
   })
 })
