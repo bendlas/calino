@@ -24,7 +24,8 @@ test.describe('base path', () => {
     await page.goto(new URL('settings', baseAppUrl).toString())
     await expect(page).toHaveURL(new RegExp(`${escapedBasePath}settings$`))
 
-    await page.keyboard.press('Escape')
-    await expect(page).toHaveURL(new RegExp(`${escapedBasePath}(month|agenda)$`))
+    await page.goto(new URL('year', baseAppUrl).toString())
+    await page.locator('[data-component="brand-home"]').click()
+    await expect(page).toHaveURL(new RegExp(`${escapedBasePath}month$`))
   })
 })
