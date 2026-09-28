@@ -56,6 +56,8 @@ import { getWeekWindowStart, setWeekWindowStart } from './features/calendar/week
 
 import './App.css'
 
+const ROUTER_BASENAME = import.meta.env.BASE_URL.replace(/\/$/, '') || '/'
+
 // Every lazy view chunk, keyed by the view it backs. Vite keys chunks by
 // import specifier, so the specifier has to be written exactly once and
 // shared — the native preloader in CalendarApp pulls the same chunks these
@@ -552,8 +554,7 @@ function CalendarApp(): JSX.Element {
       // Ignore single-key shortcuts if Ctrl or Cmd is held
       if (e.ctrlKey || e.metaKey) return
 
-      const path = window.location.pathname
-      const isSettings = path.startsWith('/settings')
+      const isSettings = location.pathname.startsWith('/settings')
 
       // Escape in settings → go back to calendar
       if (e.key === 'Escape' && isSettings) {
@@ -606,7 +607,7 @@ function CalendarApp(): JSX.Element {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [setOverlayOpen, navigate, openModal])
+  }, [setOverlayOpen, navigate, openModal, location.pathname])
 
   // Hardware back button (Android): close the top-most overlay, one level
   // per press. Modals already close themselves on Escape (EventModal,
@@ -629,7 +630,7 @@ function CalendarApp(): JSX.Element {
         setIsSidebarOpen(false)
         return
       }
-      if (window.location.pathname !== '/') {
+      if (location.pathname !== '/') {
         navigate('/')
         return
       }
@@ -639,7 +640,14 @@ function CalendarApp(): JSX.Element {
     return () => {
       void listenerPromise.then((handle) => handle.remove())
     }
-  }, [isCommandPaletteOpen, isShortcutsHelpOpen, isJournalModalOpen, isSidebarOpen, navigate])
+  }, [
+    isCommandPaletteOpen,
+    isShortcutsHelpOpen,
+    isJournalModalOpen,
+    isSidebarOpen,
+    location.pathname,
+    navigate,
+  ])
 
   // importFromCamera is a plain function re-created every render (not
   // useCallback-wrapped), so it can't go in the effect's dependency array
@@ -1004,7 +1012,7 @@ function App(): JSX.Element {
   }, [])
 
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={ROUTER_BASENAME}>
       <ThemeProvider>
         <CalDAVProvider>
           {/* Skip link — the first tabbable element in the document. Visually

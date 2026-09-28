@@ -15,7 +15,9 @@ startDynamicFavicon()
 // Register service worker when enabled (requires self-hosting with proper CSP headers)
 if (config.enableServiceWorker && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {
+    navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`, {
+      scope: import.meta.env.BASE_URL,
+    }).catch(() => {
       // SW registration failed — silently ignore
     })
   })

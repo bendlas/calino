@@ -1,11 +1,11 @@
 const CACHE_NAME = 'calino-v8'
 const STATIC_ASSETS = [
-  '/manifest.json',
-  '/apple-touch-icon.png',
-  '/favicon-96x96.png',
-  '/vite.svg',
-  '/calino-icon.svg',
-  '/icon-192.svg',
+  'manifest.json',
+  'apple-touch-icon.png',
+  'favicon-96x96.png',
+  'vite.svg',
+  'calino-icon.svg',
+  'icon-192.svg',
 ]
 
 self.addEventListener('install', (event) => {
@@ -87,11 +87,14 @@ self.addEventListener('notificationclick', (event) => {
   // URL — if it's missing or malformed, fall back to opening the root.
   const eventDate = eventData.eventDate
   if (typeof eventDate !== 'string' || !/^\d{4}-\d{2}-\d{2}/.test(eventDate)) {
-    event.waitUntil(clients.openWindow('/'))
+    event.waitUntil(clients.openWindow(self.registration.scope))
     return
   }
 
-  const url = `/?date=${eventDate.split('T')[0]}&event=${eventData.eventId}`
+  const url = new URL(
+    `?date=${eventDate.split('T')[0]}&event=${eventData.eventId}`,
+    self.registration.scope
+  ).href
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
