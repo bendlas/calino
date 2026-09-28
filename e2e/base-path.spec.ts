@@ -11,6 +11,7 @@ test.describe('base path', () => {
   test('app routes and static assets resolve under the configured base path', async ({
     page,
     baseURL,
+    request,
   }) => {
     await clearState(page)
 
@@ -21,8 +22,11 @@ test.describe('base path', () => {
     const iconResponse = await page.goto(new URL('apple-touch-icon.png', baseAppUrl).toString())
     expect(iconResponse?.ok()).toBe(true)
 
-    await page.goto(new URL('settings', baseAppUrl).toString())
-    await expect(page).toHaveURL(new RegExp(`${escapedBasePath}settings$`))
+    const sampleEventsResponse = await request.get(new URL('sample-events.ics', baseAppUrl).toString())
+    expect(sampleEventsResponse?.ok()).toBe(true)
+
+    await page.goto(new URL('settings?tab=data', baseAppUrl).toString())
+    await expect(page).toHaveURL(new RegExp(`${escapedBasePath}settings\\?tab=data$`))
 
     await page.goto(new URL('year', baseAppUrl).toString())
     await page.locator('[data-component="brand-home"]').click()

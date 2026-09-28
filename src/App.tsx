@@ -630,7 +630,9 @@ function CalendarApp(): JSX.Element {
         setIsSidebarOpen(false)
         return
       }
-      if (location.pathname !== '/') {
+      const isCalendarOrRootRoute =
+        location.pathname === '/' || URL_TO_VIEW[location.pathname] !== undefined
+      if (!isCalendarOrRootRoute) {
         navigate('/')
         return
       }
