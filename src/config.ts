@@ -1,3 +1,5 @@
+import { withBase } from './lib/urls'
+
 export const config = {
   appName: 'Calino',
   appDescription: 'An easy, private, local web calendar with CalDAV sync. Your data on your terms.',
@@ -5,7 +7,7 @@ export const config = {
   githubRepo: import.meta.env.CALINO_GITHUB_REPO || 'ivan-malinovski/Calino',
   contactEmail: import.meta.env.CALINO_CONTACT_EMAIL || 'calendar@malinov.ski',
   websiteUrl: import.meta.env.VITE_SITE_URL || 'https://calino.io',
-  privacyPolicyUrl: '/privacy',
+  privacyPolicyUrl: withBase('privacy'),
   defaultView: 'month' as const,
   defaultLightTheme: 'built-in',
   defaultDarkTheme: 'built-in',

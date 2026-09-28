@@ -28,12 +28,23 @@ const isSelfHosted = !!calinoConfig || process.env.CALINO_SELF_HOSTED === 'true'
 // transport without changing hosted-only UI behavior across the rest of E2E.
 const allowHttpConnections = isSelfHosted || process.env.CALINO_E2E_MOCK === '1'
 
+const resolveBasePath = (value: string | undefined): string => {
+  const trimmedValue = value?.trim()
+  if (!trimmedValue || trimmedValue === '.') return '/'
+  if (trimmedValue.startsWith('/') && trimmedValue.endsWith('/')) return trimmedValue
+  throw new Error(
+    `[vite] Invalid CALINO_BASE_PATH="${value}". Expected "." or a path that begins and ends with "/". Example: "/calino/".`
+  )
+}
+
+const calinoBasePath = resolveBasePath(process.env.CALINO_BASE_PATH)
+
 // Unset (the default) keeps the dev server localhost-only; see the SECURITY
 // note on `server.host` below before setting it.
 const devHost = process.env.CALINO_DEV_HOST
 
 export default defineConfig({
-  base: '/',
+  base: calinoBasePath,
   // The app reads these non-VITE_ build-time values from import.meta.env.
   // Keep the allowlist narrow: CALINO_DEV_* and other server-only settings
   // must not be exposed to browser code.

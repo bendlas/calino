@@ -12,6 +12,7 @@ import { parseVCard } from '@/features/carddav/adapter/vCardAdapter'
 import { requestNativeReminderPermission } from '@/lib/nativeReminders'
 import { config } from '@/config'
 import { createUuid } from '@/lib/uuid'
+import { withBase } from '@/lib/urls'
 import styles from './OnboardingModal.module.css'
 
 const isNative = Capacitor.isNativePlatform()
@@ -94,7 +95,7 @@ export function OnboardingModal({ onAddCalendar }: OnboardingModalProps): JSX.El
     setDemoError('')
 
     try {
-      const response = await fetch('/sample-events.ics')
+      const response = await fetch(withBase('sample-events.ics'))
       if (!response.ok) {
         throw new Error('Failed to load demo data')
       }
@@ -139,7 +140,7 @@ export function OnboardingModal({ onAddCalendar }: OnboardingModalProps): JSX.El
 
       // Load sample contacts
       try {
-        const vcfResponse = await fetch('/sample-contacts.vcf')
+        const vcfResponse = await fetch(withBase('sample-contacts.vcf'))
         if (vcfResponse.ok) {
           const vcfData = await vcfResponse.text()
           const vcards = vcfData.split(/(?=BEGIN:VCARD)/).filter(Boolean)

@@ -24,6 +24,7 @@ import { parseISO, isWithinInterval, addMinutes, addHours, addDays, isAfter } fr
 import { toast } from 'sonner'
 import i18n from '@/lib/i18n'
 import type { CalendarEvent } from '@/types'
+import { withBase } from '@/lib/urls'
 
 const CHECK_INTERVAL_MS = 60 * 1000
 // How far ahead to expand recurring series when scheduling reminders. Reminders
@@ -239,7 +240,7 @@ export function useNotifications(): void {
             label: i18n.t('common:actions.view'),
             onClick: () => {
               const eventDateStr = snoozed.eventDate.split('T')[0]
-              window.location.href = `/?date=${eventDateStr}&event=${snoozed.eventId}`
+              window.location.href = withBase(`?date=${eventDateStr}&event=${snoozed.eventId}`)
             },
           },
         })

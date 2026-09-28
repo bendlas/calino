@@ -4,6 +4,7 @@ import { useSettingsStore } from '@/store/settingsStore'
 import i18n, { currentLanguage } from '@/lib/i18n'
 import type { Calendar, CalendarEvent, Reminder } from '@/types'
 import { calendarMutesReminders, useCalendarStore } from '@/store/calendarStore'
+import { withBase } from '@/lib/urls'
 
 export type NotificationPermissionStatus = 'granted' | 'denied' | 'default'
 
@@ -172,8 +173,8 @@ export function showNotification(
 
   const notification = new Notification(title, {
     body,
-    icon: '/apple-touch-icon.png',
-    badge: '/apple-touch-icon.png',
+    icon: withBase('apple-touch-icon.png'),
+    badge: withBase('apple-touch-icon.png'),
     tag: `calino-${eventId}`,
     data: { eventId, eventDate } as NotificationData,
     requireInteraction: false,
@@ -182,7 +183,7 @@ export function showNotification(
   notification.onclick = () => {
     window.focus()
     const eventDateStr = eventDate.split('T')[0]
-    window.location.href = `/?date=${eventDateStr}&event=${eventId}`
+    window.location.href = withBase(`?date=${eventDateStr}&event=${eventId}`)
     notification.close()
   }
 
