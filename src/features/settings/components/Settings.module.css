@@ -685,6 +685,15 @@
   margin-bottom: 8px;
 }
 
+/* Informational note under a group label, e.g. which baked config defaults
+   the saved browser settings are overriding. */
+.groupHint {
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--ink-2);
+  padding: 0 20px 10px;
+}
+
 /* ── Settings Row ───────────────────────────────────────────────────────── */
 .row {
   display: flex;

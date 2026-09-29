@@ -1,10 +1,18 @@
 import { useMemo, type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSettingsStore, DURATION_OPTIONS, DEFAULT_REMINDER_OPTIONS } from '@/store/settingsStore'
+import { getBakedSettingOverrides, type BakedSettingKey } from '@/lib/settingsProvenance'
 import { useCalendarStore } from '@/store/calendarStore'
 import { getSupportedTimezones, TIMEZONE_PRESETS } from '@/lib/timezoneHelper'
 import { SettingsPageHeading } from './SettingsPageHeading'
 import styles from './Settings.module.css'
+
+const BAKED_SETTING_LABEL_KEYS: Record<BakedSettingKey, string> = {
+  defaultReminderMinutes: 'calendar.defaultReminder.label',
+  defaultStartTime: 'calendar.defaultStartTime.label',
+  defaultAllDay: 'calendar.defaultAllDay.label',
+  defaultDuration: 'calendar.defaultDuration.label',
+}
 
 export function CalendarSettings({ searchControl }: { searchControl?: JSX.Element }): JSX.Element {
   const { t } = useTranslation('settings')
@@ -30,6 +38,19 @@ export function CalendarSettings({ searchControl }: { searchControl?: JSX.Elemen
   const updateCalendar = useCalendarStore((s) => s.updateCalendar)
 
   const allTimezones = useMemo(() => getSupportedTimezones(), [])
+
+  // Which baked `calino.config.json` defaults this browser is overriding. Saved
+  // settings win over the seeded defaults, which is otherwise invisible.
+  const bakedOverrides = useMemo(
+    () =>
+      getBakedSettingOverrides({
+        defaultReminderMinutes,
+        defaultStartTime,
+        defaultAllDay,
+        defaultDuration,
+      }),
+    [defaultReminderMinutes, defaultStartTime, defaultAllDay, defaultDuration]
+  )
 
   const defaultCalendar = calendars.find((c) => c.isDefault) || calendars[0]
   const isCustomDuration = !DURATION_OPTIONS.some((o) => o.value === defaultDuration)
@@ -454,6 +475,19 @@ export function CalendarSettings({ searchControl }: { searchControl?: JSX.Elemen
 
       <div className={styles.group}>
         <div className={styles.groupLabel}>{t('calendar.newEventDefaults')}</div>
+        {bakedOverrides.length > 0 && (
+          <div
+            className={styles.groupHint}
+            data-component="settings-overrides-note"
+            data-overrides={bakedOverrides.map((o) => o.key).join(',')}
+          >
+            {t('calendar.bakedDefaultsOverridden', {
+              settings: bakedOverrides
+                .map((o) => t(BAKED_SETTING_LABEL_KEYS[o.key]))
+                .join(', '),
+            })}
+          </div>
+        )}
         <div
           className={styles.row}
           data-component="setting-row"

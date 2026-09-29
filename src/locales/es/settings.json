@@ -210,6 +210,7 @@
       "auto": "Automático"
     },
     "newEventDefaults": "Valores predeterminados de eventos nuevos",
+    "bakedDefaultsOverridden": "Guardado en este navegador, anulando los valores predeterminados de calino.config.json de tu servidor: {{settings}}",
     "defaultDuration": {
       "label": "Duración predeterminada",
       "desc": "Duración de los eventos nuevos que se crean al hacer clic en un día",

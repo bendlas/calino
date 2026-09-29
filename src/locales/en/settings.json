@@ -210,6 +210,7 @@
       "auto": "Auto"
     },
     "newEventDefaults": "New Event Defaults",
+    "bakedDefaultsOverridden": "Saved in this browser, overriding your server's calino.config.json defaults: {{settings}}",
     "defaultDuration": {
       "label": "Default Duration",
       "desc": "Length of a new event when created by clicking a day",

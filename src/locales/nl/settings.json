@@ -210,6 +210,7 @@
       "auto": "Automatisch"
     },
     "newEventDefaults": "Standaardwaarden voor nieuwe gebeurtenissen",
+    "bakedDefaultsOverridden": "Opgeslagen in deze browser, overschrijft de calino.config.json-standaardwaarden van je server: {{settings}}",
     "defaultDuration": {
       "label": "Standaardduur",
       "desc": "Duur van een nieuwe gebeurtenis die wordt gemaakt door op een dag te klikken",

@@ -206,6 +206,7 @@
       "auto": "Automatisk"
     },
     "newEventDefaults": "Standardindstillinger for nye begivenheder",
+    "bakedDefaultsOverridden": "Gemt i denne browser og tilsidesætter serverens calino.config.json-standarder: {{settings}}",
     "defaultDuration": {
       "label": "Standardvarighed",
       "desc": "Varigheden af en ny begivenhed, når den oprettes ved at klikke på en dag",

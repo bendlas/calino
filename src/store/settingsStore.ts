@@ -17,6 +17,7 @@ import type {
 } from '@/types'
 import { getBrowserLanguage } from '@/lib/languages'
 import { getBakedSettingsDefaults } from '@/lib/configLoader'
+import { logSettingsProvenance } from '@/lib/settingsProvenance'
 import { config, DEFAULT_CALENDAR_COLOR, EVENT_COLORS as _EVENT_COLORS_FROM_CONFIG } from '@/config'
 import { ALL_VIEWS, DEFAULT_DIVIDER_AFTER } from '@/features/calendar/viewRoutes'
 
@@ -265,6 +266,12 @@ export const useSettingsStore = create<SettingsStore>()(
           ...persisted,
           adjustableTheme: normalizeAdjustableTheme(adjustableTheme),
         }
+      },
+      // Diagnostic: report which baked defaults the saved browser state
+      // overrides, so "server config changed but the UI didn't" is visible in
+      // the console instead of a mystery.
+      onRehydrateStorage: () => (state) => {
+        if (state) logSettingsProvenance(state)
       },
     }
   )
