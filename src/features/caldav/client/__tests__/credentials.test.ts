@@ -1,5 +1,33 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { getAllCredentials } from '../credentials'
+import { getAllCredentials, saveCredentials, updateCredential } from '../credentials'
+import { encryptPassword } from '@/lib/crypto'
+
+const CREDENTIALS_KEY = 'calino_caldav_credentials'
+
+function installLocalStorage(): Map<string, string> {
+  const map = new Map<string, string>()
+  const localStorageMock = {
+    getItem: (key: string): string | null => (map.has(key) ? map.get(key)! : null),
+    setItem: (key: string, value: string): void => {
+      map.set(key, String(value))
+    },
+    removeItem: (key: string): void => {
+      map.delete(key)
+    },
+    clear: (): void => map.clear(),
+    key: (index: number): string | null => [...map.keys()][index] ?? null,
+    get length(): number {
+      return map.size
+    },
+  }
+  Object.defineProperty(window, 'localStorage', { value: localStorageMock, writable: true })
+  Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock, writable: true })
+  return map
+}
+
+function readStored(map: Map<string, string>): Record<string, unknown>[] {
+  return JSON.parse(map.get(CREDENTIALS_KEY) ?? '[]')
+}
 
 describe('credentials', () => {
   beforeEach(() => {
@@ -68,6 +96,86 @@ describe('credentials', () => {
 
       expect(result).toHaveLength(1)
       expect(result[0].id).toBe('1')
+    })
+  })
+
+  describe('browser-session accounts never persist a password', () => {
+    let map: Map<string, string>
+
+    beforeEach(() => {
+      map = installLocalStorage()
+    })
+
+    it('omits the password field when saving a browser-session credential', async () => {
+      await saveCredentials({
+        serverUrl: 'https://calendar.example.com/caldav.php/chair/calendar',
+        username: '',
+        password: '',
+        authMode: 'browser-session',
+      })
+
+      const [stored] = readStored(map)
+      expect(stored.authMode).toBe('browser-session')
+      expect(stored).not.toHaveProperty('password')
+
+      const [credential] = await getAllCredentials()
+      expect(credential.password).toBe('')
+    })
+
+    it('drops a stored Basic password when switching to browser-session', async () => {
+      const saved = await saveCredentials({
+        serverUrl: 'https://example.com',
+        username: 'user',
+        password: 'hunter2',
+        authMode: 'basic',
+      })
+      expect(readStored(map)[0]).toHaveProperty('password')
+
+      await updateCredential(saved.id, { authMode: 'browser-session' })
+
+      const [stored] = readStored(map)
+      expect(stored.authMode).toBe('browser-session')
+      expect(stored).not.toHaveProperty('password')
+      const [credential] = await getAllCredentials()
+      expect(credential.password).toBe('')
+    })
+
+    it('purges a leftover password blob on next read (migration)', async () => {
+      map.set(
+        CREDENTIALS_KEY,
+        JSON.stringify([
+          {
+            id: 'legacy',
+            serverUrl: 'https://example.com',
+            username: 'user',
+            authMode: 'browser-session',
+            password: await encryptPassword('leftover-secret'),
+          },
+        ])
+      )
+
+      const [credential] = await getAllCredentials()
+      expect(credential.password).toBe('')
+
+      const [stored] = readStored(map)
+      expect(stored).not.toHaveProperty('password')
+    })
+
+    it('keeps the Basic password when an unrelated field changes', async () => {
+      const saved = await saveCredentials({
+        serverUrl: 'https://example.com',
+        username: 'user',
+        password: 'hunter2',
+        authMode: 'basic',
+      })
+
+      await updateCredential(saved.id, { username: 'renamed' })
+
+      const [stored] = readStored(map)
+      expect(stored.username).toBe('renamed')
+      expect(stored).toHaveProperty('password')
+      const [credential] = await getAllCredentials()
+      expect(credential.password).toBe('hunter2')
     })
   })
 })

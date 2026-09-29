@@ -14,9 +14,19 @@ interface StoredCredential {
   id: string
   serverUrl: string
   username?: string
-  password: string | EncryptedData
+  /** Absent for browser-session accounts — they carry no secret. */
+  password?: string | EncryptedData
   authMode?: 'basic' | 'browser-session'
   customHeaders?: Record<string, EncryptedData>
+}
+
+/**
+ * Browser-session accounts authenticate with the existing session cookie,
+ * so a password is never sent and must never be persisted. Only Basic-auth
+ * accounts have a password worth storing.
+ */
+function storesPassword(authMode: 'basic' | 'browser-session'): boolean {
+  return authMode === 'basic'
 }
 
 export async function saveCredentials(
@@ -25,7 +35,7 @@ export async function saveCredentials(
   const stored = getAllStoredCredentials()
   const authMode = credentials.authMode ?? 'basic'
   const password = credentials.password ?? ''
-  const encryptedPassword = await encryptPassword(password)
+  const encryptedPassword = storesPassword(authMode) ? await encryptPassword(password) : undefined
   const customHeaders = validateCustomHeaders(credentials.customHeaders ?? {})
   const encryptedHeaders = Object.fromEntries(
     await Promise.all(
@@ -41,7 +51,7 @@ export async function saveCredentials(
     serverUrl: credentials.serverUrl,
     username: credentials.username,
     authMode,
-    password: encryptedPassword,
+    ...(encryptedPassword ? { password: encryptedPassword } : {}),
     customHeaders: encryptedHeaders,
   }
 
@@ -81,9 +91,17 @@ export async function getAllCredentials(): Promise<CalDAVCredentials[]> {
   const credentials: CalDAVCredentials[] = []
 
   for (const cred of stored) {
-    let password: string
+    const authMode = cred.authMode ?? 'basic'
+    let password = ''
 
-    if (isEncryptedPassword(cred.password)) {
+    if (!storesPassword(authMode)) {
+      // Browser-session accounts never send a password. Purge any blob a
+      // previous version (or an earlier Basic-auth config) left behind.
+      if (cred.password !== undefined) {
+        delete cred.password
+        migrated = true
+      }
+    } else if (isEncryptedPassword(cred.password)) {
       // New encrypted format — decrypt
       password = await decryptPassword(cred.password)
     } else if (typeof cred.password === 'string') {
@@ -101,7 +119,7 @@ export async function getAllCredentials(): Promise<CalDAVCredentials[]> {
       serverUrl: cred.serverUrl,
       username: cred.username,
       password,
-      authMode: cred.authMode ?? 'basic',
+      authMode,
       customHeaders: Object.fromEntries(
         await Promise.all(
           Object.entries(cred.customHeaders ?? {}).map(async ([name, encrypted]) => [
@@ -143,12 +161,20 @@ export async function updateCredential(
   const index = stored.findIndex((c) => c.id === id)
   if (index !== -1) {
     const existing = stored[index]
+    const authMode = updates.authMode ?? existing.authMode ?? 'basic'
+    // Never keep a password on a browser-session credential. Switching from
+    // Basic also drops the old secret instead of silently retaining it.
+    const password = !storesPassword(authMode)
+      ? undefined
+      : updates.password
+        ? await encryptPassword(updates.password)
+        : existing.password
     stored[index] = {
-      ...existing,
+      id: existing.id,
       serverUrl: updates.serverUrl ?? existing.serverUrl,
       username: updates.username ?? existing.username,
-      password: updates.password ? await encryptPassword(updates.password) : existing.password,
-      authMode: updates.authMode ?? existing.authMode ?? 'basic',
+      ...(password !== undefined ? { password } : {}),
+      authMode,
       customHeaders:
         updates.customHeaders === undefined
           ? existing.customHeaders
