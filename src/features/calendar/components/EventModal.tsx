@@ -245,6 +245,22 @@ export function EventModal(): JSX.Element | null {
     setCalendarId(val)
   }, [])
 
+  // Unchecking "all day" used to leave the seeded 00:00–23:59 range in place,
+  // so the event turned into a near-full-day *timed* event. Fall back to a
+  // fresh timed range built from the configured default start time and
+  // duration, collapsed onto the start date.
+  const handleIsAllDayChange = useCallback(
+    (next: boolean): void => {
+      setIsAllDay(next)
+      if (!next) {
+        setStartTime(defaultStartTime)
+        setEndTime(addMinutesToTimeStr(defaultStartTime, defaultDuration))
+        setEndDate(startDate)
+      }
+    },
+    [defaultStartTime, defaultDuration, startDate]
+  )
+
   // Load attachments from IndexedDB when modal opens with existing event.
   //
   // `fallback` is read into a local before the await so the async paths don't
@@ -1817,7 +1833,7 @@ export function EventModal(): JSX.Element | null {
                         ?.timezone
                     }
                     isAllDay={isAllDay}
-                    onIsAllDayChange={setIsAllDay}
+                    onIsAllDayChange={handleIsAllDayChange}
                     startDate={startDate}
                     onStartDateChange={setStartDate}
                     startTime={startTime}

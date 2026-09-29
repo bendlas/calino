@@ -3,6 +3,7 @@ import { screen, fireEvent, waitFor } from '@testing-library/react'
 import { render } from '@/test/caldavRender'
 import { EventModal } from '../components/EventModal'
 import { useCalendarStore } from '@/store/calendarStore'
+import { useSettingsStore } from '@/store/settingsStore'
 
 describe('EventModal', () => {
   beforeEach(() => {
@@ -19,6 +20,7 @@ describe('EventModal', () => {
       showTasksInViews: true,
     })
     store.closeModal()
+    useSettingsStore.getState().resetSettings()
   })
 
   it('does not render when modal is closed', () => {
@@ -160,6 +162,27 @@ describe('EventModal', () => {
 
     render(<EventModal />)
     expect(screen.getByRole('checkbox', { name: /all day/i })).toBeInTheDocument()
+  })
+
+  it('falls back to the configured start time and duration when unchecking all-day', () => {
+    useSettingsStore.getState().updateSettings({
+      defaultAllDay: true,
+      defaultStartTime: '19:00',
+      defaultDuration: 90,
+    })
+
+    const store = useCalendarStore.getState()
+    store.openModal('2024-03-15')
+
+    render(<EventModal />)
+
+    const allDay = screen.getByRole('checkbox', { name: /all day/i })
+    expect(allDay).toBeChecked()
+
+    fireEvent.click(allDay)
+
+    expect(screen.getByLabelText('Start time')).toHaveValue('19:00')
+    expect(screen.getByLabelText('End time')).toHaveValue('20:30')
   })
 
   it('shows recurrence dropdown after enabling Recurring', () => {
