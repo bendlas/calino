@@ -6,6 +6,12 @@ All notable changes to Calino will be documented in this file.
 
 ### Added
 
+- **A lapsed browser session re-authenticates instead of silently failing.**
+  When a `browser-session` account's gateway cookie is no longer accepted,
+  Calino now reloads the app once so the gateway's own login redirect can run
+  and return the user to Calino, rather than reporting an opaque sync failure.
+  A tab that is still rejected after that one reload does not keep reloading.
+
 - **Spanish, French, Italian, and Dutch interface translations.** These
   languages are available in the language setting and use localized date
   names; Android shortcuts are localized as well.

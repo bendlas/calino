@@ -33,6 +33,8 @@ Calino also supports a **browser-session** auth mode for CalDAV: it sends no Bas
 
 Browser-session mode is most reliable when Calino and your DAV endpoint are same-origin. For cross-origin use, your DAV server must allow credentialed CORS (`Access-Control-Allow-Origin` set to your Calino origin, not `*`, plus `Access-Control-Allow-Credentials: true`) and issue cookies compatible with cross-site requests (often `SameSite=None; Secure`). Browser third-party-cookie policies can still block those cookies.
 
+When the session expires, a DAV request is answered with a redirect to the gateway's login page. A `fetch` cannot follow that cross-origin redirect, so Calino reloads the app once instead: the browser follows the gateway's own login redirect, and after signing in the user is returned to Calino. A tab whose session is still rejected after that one reload does not keep reloading.
+
 ### DAV behind an authentication gateway
 
 In the account form, add the headers required by your gateway. The self-hosted `/setup` generator has the same fields and encrypts each value in the generated `calino.config.json`.

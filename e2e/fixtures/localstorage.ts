@@ -384,6 +384,12 @@ export async function seedAccount(
     username: string
     password: string
     /**
+     * Auth mode for the seeded credential. Defaults to `basic`; pass
+     * `browser-session` to exercise the cookie/gateway path, in which case
+     * `password` is ignored (no secret is ever stored for that mode).
+     */
+    authMode?: 'basic' | 'browser-session'
+    /**
      * Collections to seed for this account. Defaults to the single
      * `Personal` calendar every existing spec relies on — pass this only
      * when a spec needs more than one collection (e.g. a move target).
@@ -465,12 +471,19 @@ export async function seedAccount(
         },
       ]),
       credsJson: JSON.stringify([
-        {
-          id: credentialId,
-          serverUrl: account.serverUrl,
-          username: account.username,
-          password: account.password,
-        },
+        account.authMode === 'browser-session'
+          ? {
+              id: credentialId,
+              serverUrl: account.serverUrl,
+              username: account.username,
+              authMode: 'browser-session',
+            }
+          : {
+              id: credentialId,
+              serverUrl: account.serverUrl,
+              username: account.username,
+              password: account.password,
+            },
       ]),
       calendarsJson: JSON.stringify(
         calendarSeeds.map((calendar, index) => ({

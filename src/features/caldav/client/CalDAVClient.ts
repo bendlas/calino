@@ -11,6 +11,7 @@ import { createUuid } from '@/lib/uuid'
 import { decodeBase64 } from '@/lib/settingsSync'
 import { webFetch } from '@/lib/webFetch'
 import { createDirectDavFetch, validateCustomHeaders } from './customHeaders'
+import { createBrowserSessionFetch } from './browserSessionFetch'
 
 import { DEFAULT_CALENDAR_COLOR } from '@/config'
 import { useSettingsStore } from '@/store/settingsStore'
@@ -323,8 +324,11 @@ export class CalDAVClient {
         ? basicAuthHeader(credentials.username ?? '', credentials.password ?? '')
         : null
     const directFetch = createDirectDavFetch(serverUrl, credentials.customHeaders, fetchWithTimeout)
-    const sessionFetch: typeof fetch = (input, init) =>
-      directFetch(input, { ...init, credentials: 'include' })
+    // browser-session mode authenticates with the gateway cookie. A gateway
+    // that redirects the request to a cross-origin login page would otherwise
+    // surface as an opaque CORS failure; the wrapper turns that into a one-shot
+    // reload that lets the browser follow the gateway's own login redirect.
+    const sessionFetch = createBrowserSessionFetch(directFetch)
     this.proxyFetch = proxyUrl
       ? createProxyFetch(proxyUrl)
       : this.authMode === 'browser-session'

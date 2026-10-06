@@ -1,6 +1,7 @@
 import { createDAVClient } from 'tsdav'
 import { webFetch } from '@/lib/webFetch'
 import { createDirectDavFetch, validateCustomHeaders, type CustomHeaders } from './customHeaders'
+import { createBrowserSessionFetch } from './browserSessionFetch'
 import { basicAuthHeader } from './basicAuth'
 import i18n from '@/lib/i18n'
 import type { CalDAVAuthMode } from '../types'
@@ -394,9 +395,7 @@ export async function testConnection(
     }
     const baseFetch = proxyUrl ? createProxyFetch(proxyUrl) : webFetch
     const fetchFn: typeof fetch =
-      authMode === 'browser-session'
-        ? (input, init) => baseFetch(input, { ...init, credentials: 'include' })
-        : baseFetch
+      authMode === 'browser-session' ? createBrowserSessionFetch(baseFetch) : baseFetch
 
     const client = await createDAVClient({
       serverUrl,
@@ -456,6 +455,8 @@ export async function probeConnection(
     }
     validateCustomHeaders(customHeaders, proxyUrl)
     const directFetch = createDirectDavFetch(serverUrl, customHeaders)
+    const davFetch =
+      authMode === 'browser-session' ? createBrowserSessionFetch(directFetch) : directFetch
 
     const attempt = async (url: string): Promise<DavProbeResult> => {
       const headers: Record<string, string> = {
@@ -480,7 +481,7 @@ export async function probeConnection(
 
       const response = proxyUrl
         ? await proxyFetch(proxyUrl, url, init)
-        : await directFetch(url, init)
+        : await davFetch(url, init)
 
       // 207 Multi-Status is the success case for PROPFIND.
       const ok = response.ok || response.status === 207

@@ -58,7 +58,7 @@ export function classifySyncError(message: string): SyncErrorCode {
     return 'forbidden'
   }
 
-  if (lower.includes('401') || lower.includes('unauthorized')) {
+  if (lower.includes('401') || lower.includes('unauthorized') || lower.includes('session expired')) {
     return 'auth'
   }
 
