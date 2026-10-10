@@ -1,4 +1,5 @@
 import type { Plugin } from 'vite'
+import { registerJmapMock } from './vite-jmap-mock'
 import http from 'node:http'
 import type { AddressInfo } from 'node:net'
 
@@ -194,6 +195,14 @@ const ACCOUNTS: MockAccount[] = [
         // parallel would change the dump it reads back.
         path: '/dav/calendars/user/ics-fid/',
         displayName: 'ICS Fidelity',
+        color: '#0F9D58',
+        components: ['VEVENT', 'VTODO', 'VJOURNAL'],
+      },
+      {
+        // Owned by `event-color.spec.ts` (issue #205), which seeds events with
+        // an RFC 7986 COLOR property and asserts the exact bytes after an edit.
+        path: '/dav/calendars/user/ev-color/',
+        displayName: 'Event Color',
         color: '#0F9D58',
         components: ['VEVENT', 'VTODO', 'VJOURNAL'],
       },
@@ -893,6 +902,7 @@ export function caldavMockPlugin(): Plugin {
     name: 'calino-caldav-mock',
 
     configureServer(server) {
+      registerJmapMock(server)
       for (const account of ACCOUNTS) {
         server.middlewares.use(account.mount, makeHandler(account))
       }

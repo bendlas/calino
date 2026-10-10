@@ -4,6 +4,7 @@
     "general": "General",
     "appearance": "Appearance",
     "calendar": "Calendar",
+    "tasks": "Tasks",
     "categories": "Categories",
     "notifications": "Notifications",
     "sync": "Sync",
@@ -103,7 +104,7 @@
     },
     "syncError": {
       "cors": "Your server is blocking the connection. This usually means CORS headers aren't configured. Check that your CalDAV server sends these, and that it answers OPTIONS:",
-      "corsHelp": "Sync → your account → <strong>Diagnose</strong> will tell you which part is missing. See <link>Baikal CORS docs</link> for help.",
+      "corsHelp": "Sync → your account → <strong>Diagnose</strong> will tell you which part is missing. See <docs>Baikal CORS docs</docs> for help.",
       "network": "Couldn't reach your CalDAV server. Check your internet connection and make sure the server is online — a missing CORS header looks identical from here, so try <strong>Diagnose</strong> under Sync if the server is up.",
       "timeout": "Your CalDAV server took too long to respond. It may be overloaded — try again in a moment.",
       "auth": "Authentication failed. Check your CalDAV username and password. Many providers require an app-specific password rather than your account password.",
@@ -123,6 +124,31 @@
     "thursday": "Thursday",
     "friday": "Friday",
     "saturday": "Saturday"
+  },
+  "tasks": {
+    "title": "Tasks",
+    "display": "Display",
+    "showTaskCalendarLabels": {
+      "label": "Show calendar names in Tasks",
+      "desc": "Show each task's calendar beside its due date when multiple task calendars are enabled."
+    },
+    "showSidebarTaskCalendarLabels": {
+      "label": "Reveal calendar names in the sidebar",
+      "desc": "Show a task's calendar on hover or keyboard focus when multiple task calendars are enabled."
+    },
+    "hideCompletedTasks": {
+      "label": "Hide Completed Tasks",
+      "desc": "Don't show done tasks in the calendar grid"
+    },
+    "reminders": "Reminders",
+    "taskDueDateReminders": {
+      "label": "Task Due Date Reminders",
+      "desc": "Notify when a task is due: at its due time, or at 9:00 for tasks with only a due date"
+    },
+    "overdueTaskBadge": {
+      "label": "Overdue Task Badge",
+      "desc": "Show a badge on the app icon for overdue tasks"
+    }
   },
   "calendar": {
     "title": "Calendar",
@@ -197,11 +223,6 @@
       "never": "Never",
       "current": "Current month",
       "all": "All"
-    },
-    "hideCompletedTasks": {
-      "label": "Hide Completed Tasks",
-      "desc": "Don't show done tasks in the calendar grid",
-      "ariaLabel": "Hide completed tasks"
     },
     "monthViewEventLimit": {
       "label": "Events Before Rollup",
@@ -332,13 +353,34 @@
         "mono": "Monospace"
       },
       "colors": {
-        "canvas": { "label": "Canvas", "desc": "Main page background" },
-        "panel": { "label": "Surface", "desc": "Cards, dialogs, and panels" },
-        "accent": { "label": "Accent", "desc": "Actions, selection, and focus" },
-        "accentContrast": { "label": "Accent text", "desc": "Text on accent fills" },
-        "text": { "label": "Primary text", "desc": "Main readable text" },
-        "mutedText": { "label": "Muted text", "desc": "Secondary and quiet text" },
-        "border": { "label": "Borders", "desc": "Dividers and field outlines" },
+        "canvas": {
+          "label": "Canvas",
+          "desc": "Main page background"
+        },
+        "panel": {
+          "label": "Surface",
+          "desc": "Cards, dialogs, and panels"
+        },
+        "accent": {
+          "label": "Accent",
+          "desc": "Actions, selection, and focus"
+        },
+        "accentContrast": {
+          "label": "Accent text",
+          "desc": "Text on accent fills"
+        },
+        "text": {
+          "label": "Primary text",
+          "desc": "Main readable text"
+        },
+        "mutedText": {
+          "label": "Muted text",
+          "desc": "Secondary and quiet text"
+        },
+        "border": {
+          "label": "Borders",
+          "desc": "Dividers and field outlines"
+        },
         "colorAriaLabel": "{{label}} color"
       },
       "cornerRadius": "Corner radius",
@@ -462,17 +504,6 @@
       "betaP1": "The background check is at the mercy of your phone's battery settings. Xiaomi, Samsung, OPPO, OnePlus and Huawei devices in particular freeze background apps aggressively, and will silently skip it. If your events seem stale, set Calino to <strong>No restrictions</strong> in Android's battery settings for the app.",
       "betaP2": "If a mirrored calendar doesn't appear in your calendar app, it's usually hidden rather than missing — new calendars often arrive unticked in that app's own list of calendars to display."
     },
-    "tasks": "Tasks",
-    "taskDueDateReminders": {
-      "label": "Task Due Date Reminders",
-      "desc": "Notify when a task's due date arrives",
-      "ariaLabel": "Task due date reminders"
-    },
-    "overdueTaskBadge": {
-      "label": "Overdue Task Badge",
-      "desc": "Show a badge on the app icon for overdue tasks",
-      "ariaLabel": "Overdue task badge"
-    },
     "test": {
       "label": "Test Notification",
       "descDefault": "Click to enable notifications and test",
@@ -512,14 +543,20 @@
     "subscribe": "Subscribe to calendar (.ics)",
     "confirmRemoveSubscription": "Remove this calendar subscription? Its events will be deleted locally.",
     "confirmRemoveAccount": "Are you sure you want to remove this account? Calendar data will be preserved locally.",
-    "credentialsNotFound": "Credentials not found"
+    "credentialsNotFound": "Credentials not found",
+    "accountProtocol": "Account protocol"
   },
   "data": {
+    "webmcp": {
+      "label": "Browser AI Access (WebMCP, experimental)",
+      "desc": "Allow browser AI agents to read calendar names and visible event summaries, open events, and prepare drafts for you to review and save. Results may be sent to the agent’s AI provider. Applies only to this browser.",
+      "unavailable": "The WebMCP API is not available on this page. Enable it in your browser and relaunch, or use a browser with WebMCP support."
+    },
     "title": "Data",
     "importExport": "Import & Export",
     "exportCalendar": {
       "label": "Export Calendar",
-      "desc": "Download all events as a standard .ics file",
+      "desc": "Download events from all calendars, or just one, as a standard .ics file",
       "exporting": "Exporting...",
       "export": "Export .ics"
     },
@@ -572,19 +609,42 @@
     "dismiss": "Dismiss",
     "dangerZone": "Danger Zone",
     "deleteAllEvents": {
-      "label": "Delete All Events",
-      "desc": "Permanently remove every event from this calendar. This cannot be undone.",
-      "confirm": "Delete all events? This cannot be undone.",
-      "action": "Delete all events"
+      "label": "Delete Local Events",
+      "desc": "Remove events from the selected calendar from this device only. Events on your CalDAV server are not deleted and may reappear the next time you sync.",
+      "confirm": "Delete all events stored on this device? Events on your server are not deleted and may reappear after the next sync. This cannot be undone.",
+      "action": "Delete local events",
+      "confirmCalendar": "Delete all events in “{{name}}” from this device? Events on your server are not deleted and may reappear after the next sync. This cannot be undone."
     },
     "resetApp": {
-      "label": "Reset Calino",
-      "desc": "Erase all data, settings, and connected accounts and start fresh.",
-      "confirm": "Are you sure you want to delete all local data? This cannot be undone.",
-      "action": "Reset app"
+      "label": "Reset Calino on This Device",
+      "desc": "Clear all settings, connected accounts and locally stored data from this device and start fresh. Calendars and events on your servers are not touched. Events that only exist in Calino (not synced anywhere) are lost.",
+      "confirm": "Reset Calino on this device? This clears all local data, settings and connected accounts. Calendars and events on your servers are not deleted, but events that only exist in Calino will be lost. This cannot be undone.",
+      "action": "Reset this device"
     },
     "duplicateDeleted": "Duplicate event deleted",
-    "duplicateDeleteFailed": "Failed to delete event. Please try again."
+    "duplicateDeleteFailed": "Failed to delete event. Please try again.",
+    "allCalendars": "All calendars",
+    "calendarPickerLabel": "Calendar",
+    "purgeCalendar": {
+      "label": "Delete All Events From a Calendar",
+      "desc": "Permanently delete every event in one calendar, including from your CalDAV server. This cannot be undone.",
+      "placeholder": "Select a calendar…",
+      "action": "Delete everything…",
+      "done_one": "Deleted {{count}} event from “{{name}}”",
+      "done_other": "Deleted {{count}} events from “{{name}}”",
+      "partial": "Deleted {{deleted}} events from “{{name}}”; {{failed}} could not be deleted from the server and will be retried",
+      "dialog": {
+        "title": "Delete All Events",
+        "message": "You are about to delete every event in <strong>“{{calendarName}}”</strong>. The calendar itself is kept.",
+        "warningRemote_one": "This will permanently delete <strong>{{count}} event</strong> from both Calino and the server. This action cannot be undone.",
+        "warningRemote_other": "This will permanently delete <strong>{{count}} events</strong> from both Calino and the server. This action cannot be undone.",
+        "warningLocal_one": "This will permanently delete <strong>{{count}} event</strong> from Calino. This action cannot be undone.",
+        "warningLocal_other": "This will permanently delete <strong>{{count}} events</strong> from Calino. This action cannot be undone.",
+        "typeToConfirm": "Type the calendar name to confirm:",
+        "confirm": "Delete all events",
+        "deleting": "Deleting…"
+      }
+    }
   },
   "aiVision": {
     "title": "AI Photo Import",
@@ -721,8 +781,102 @@
     "summary": {
       "ok": "Everything checks out.",
       "degraded": "Sync will work, but your server could be configured better.",
-      "broken": "Something is wrong with this server."
+      "broken": "The checks below found a problem. Open a failed check to see what to change.",
+      "broken_page": "The connection was blocked by this page, not by your server. Open the failed check to see your options.",
+      "broken_credentials": "The server answered but rejected the username or password."
     },
     "corsNote": " Checks marked “inferred” could not be read directly — browsers hide a server's CORS headers from JavaScript."
+  },
+  "ui": {
+    "aiVision": {
+      "hintCheckKey": "Double-check your API key and base URL.",
+      "emptyReply": "The model returned an empty response to the test prompt.",
+      "hintReasoning": "If this is a reasoning model, it may need a higher token limit than this app allows — try a non-reasoning model if the issue persists.",
+      "hintNoVision": "This model responded but does not appear to support image understanding. Choose a vision-capable model.",
+      "err": {
+        "auth": "Authentication failed ({{status}}) — check that your API key is correct.",
+        "authAnthropic": "Authentication failed ({{status}}) — check that your Anthropic API key is correct.",
+        "failed": "Request failed ({{status}}): {{message}}",
+        "failedAnthropic": "Anthropic request failed ({{status}}): {{message}}",
+        "failedNoMessage": "Request failed with status {{status}}",
+        "failedNoMessageAnthropic": "Anthropic request failed with status {{status}}",
+        "noText": "Response did not contain any text content",
+        "noTextAnthropic": "Anthropic response did not contain any text content"
+      }
+    },
+    "setup": {
+      "title": "Calino Setup",
+      "subtitle": "Generate a configuration file for your self-hosted Calino instance.",
+      "stepAccounts": "Accounts",
+      "stepPassword": "Password",
+      "stepDownload": "Download",
+      "remove": "Remove {{name}}",
+      "displayName": "Display name",
+      "optional": "(optional)",
+      "displayNamePlaceholder": "e.g. Personal, Work",
+      "serverUrl": "Server URL",
+      "username": "Username",
+      "password": "Password",
+      "connectionSuccessful": "Connection successful",
+      "diagnose": "Diagnose the connection",
+      "testing": "Testing…",
+      "testConnection": "Test Connection",
+      "addAccount": "Add Account",
+      "subscriptionsHeading": "Calendar Subscriptions (.ics)",
+      "name": "Name",
+      "namePlaceholder": "e.g. Holidays",
+      "calendarUrl": "Calendar URL",
+      "refreshInterval": "Refresh interval (minutes)",
+      "proxyOptional": "Proxy URL (optional)",
+      "proxyHint": "Only needed if the calendar host doesn't allow cross-origin requests.",
+      "addSubscription": "Add Subscription",
+      "next": "Next →",
+      "masterPassword": "Master Password",
+      "masterPlaceholder": "Choose a strong password",
+      "masterHint": "This password will be used to unlock your calendars in Calino.",
+      "confirmPassword": "Confirm Password",
+      "confirmPlaceholder": "Type it again",
+      "back": "← Back",
+      "encrypting": "Encrypting…",
+      "generate": "Generate Config",
+      "nextSteps": "Next steps",
+      "step1": "Place <code>calino.config.json</code> in the project root",
+      "step2": "Rebuild: <code>docker compose up -d --build</code>",
+      "step3": "Open Calino and enter your master password",
+      "rebuildWarning": "⚠️ The config is baked into the JS bundle at build time. You must rebuild for changes to take effect.",
+      "startOver": "← Start Over",
+      "downloadAgain": "Download Again",
+      "done": "Done →",
+      "passwordsMismatch": "Passwords do not match.",
+      "passwordTooShort": "Password must be at least 6 characters.",
+      "encryptionFailed": "Encryption failed."
+    },
+    "categories": {
+      "unknown": "Unknown",
+      "eventCount_one": "{{count}} event",
+      "eventCount_other": "{{count}} events",
+      "matches_one": "{{count}} match",
+      "matches_other": "{{count}} matches",
+      "uncategorized": "({{count}} uncategorized)",
+      "inCalendar": "{{count}} in {{name}}",
+      "willMatch_one": "Will match {{count}} event",
+      "willMatch_other": "Will match {{count}} events",
+      "currentlyUncategorized": "({{count}} currently uncategorized)"
+    },
+    "data": {
+      "untitledEvent": "Untitled Event",
+      "start": "Start: {{date}}",
+      "end": "End: {{date}}",
+      "fix": "Fix",
+      "delete": "Delete",
+      "fixAll": "Fix All ({{count}})",
+      "deleteAll": "Delete All",
+      "duplicateIntro": "These events share the same unique ID (UID) on your server but are stored as separate items. Calino can only show one of each set — the others are hidden to keep your calendar stable. This usually comes from a bulk copy made in another app. To fix it, give each event a unique UID on your server, then sync again.",
+      "duplicateUid": "Duplicate UID: {{uid}}",
+      "kept": "Kept",
+      "hidden": "Hidden",
+      "deleting": "Deleting…",
+      "dismiss": "Dismiss"
+    }
   }
 }

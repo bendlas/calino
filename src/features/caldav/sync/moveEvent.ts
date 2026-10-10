@@ -1,5 +1,6 @@
 import type { CalendarEvent } from '@/types'
 import type { SyncEngine } from './syncEngine'
+import i18n from '@/lib/i18n'
 
 /**
  * Moving an event between CalDAV collections.
@@ -38,7 +39,11 @@ export interface MoveResult {
 export class MoveLostSourceError extends Error {
   readonly events: CalendarEvent[]
   constructor(events: CalendarEvent[], cause: unknown) {
-    super(`Move lost its source resource: ${cause instanceof Error ? cause.message : cause}`)
+    super(
+      i18n.t('errors:ui.moveLostSource', {
+        message: cause instanceof Error ? cause.message : String(cause),
+      })
+    )
     this.name = 'MoveLostSourceError'
     this.events = events
   }
@@ -98,6 +103,18 @@ export async function moveEventGroup(
   ctx: MoveContext
 ): Promise<MoveResult> {
   const memberIds = events.map((e) => e.id)
+
+  // Same-account move on a backend that can relocate a resource in place (JMAP):
+  // one atomic update, no duplicate UID, no window where the event is lost.
+  if (
+    ctx.sourceEngine &&
+    ctx.sourceHref &&
+    ctx.targetEngine.supportsAtomicMove &&
+    ctx.targetEngine.sharesBackendWith(ctx.sourceEngine)
+  ) {
+    const moved = await ctx.targetEngine.moveGroupFrom(events, ctx.sourceHref, ctx.sourceEtag ?? '')
+    return { ...moved, sourceDeleted: true, memberIds }
+  }
 
   let written: { url: string; etag: string }
   try {

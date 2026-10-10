@@ -207,6 +207,8 @@ const DEFAULT_SETTINGS: UserSettings = {
   caldavDebugMode: false,
   adjustableTheme: DEFAULT_ADJUSTABLE_THEME,
   hideCompletedTasksInMonthView: true,
+  showTaskCalendarLabels: true,
+  showSidebarTaskCalendarLabels: true,
   useCategoryColors: true,
   showEventIcons: true,
   sidebarWidth: 300,
@@ -254,6 +256,19 @@ export const useSettingsStore = create<SettingsStore>()(
       name: 'calino-settings',
       storage: createJSONStorage(() => safeLocalStorage),
       version: 4,
+      merge: (persistedState, currentState) => {
+        const persisted = (persistedState ?? {}) as Partial<UserSettings>
+        return {
+          ...currentState,
+          ...persisted,
+          // The original shared preference seeds the sidebar only until it
+          // has its own saved value. Subsequent toggles stay independent.
+          showSidebarTaskCalendarLabels:
+            persisted.showSidebarTaskCalendarLabels ??
+            persisted.showTaskCalendarLabels ??
+            DEFAULT_SETTINGS.showSidebarTaskCalendarLabels,
+        }
+      },
       // Blind spread: any key the persisted state carries wins, including
       // ones from a newer version after a downgrade. That is safe for
       // viewOrder specifically because it is reconciled against ALL_VIEWS on
@@ -264,6 +279,10 @@ export const useSettingsStore = create<SettingsStore>()(
         return {
           ...DEFAULT_SETTINGS,
           ...persisted,
+          showSidebarTaskCalendarLabels:
+            persisted.showSidebarTaskCalendarLabels ??
+            persisted.showTaskCalendarLabels ??
+            DEFAULT_SETTINGS.showSidebarTaskCalendarLabels,
           adjustableTheme: normalizeAdjustableTheme(adjustableTheme),
         }
       },

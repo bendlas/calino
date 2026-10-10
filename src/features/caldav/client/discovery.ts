@@ -4,7 +4,11 @@ import { createDirectDavFetch, validateCustomHeaders, type CustomHeaders } from 
 import { createBrowserSessionFetch } from './browserSessionFetch'
 import { basicAuthHeader } from './basicAuth'
 import i18n from '@/lib/i18n'
-import type { CalDAVAuthMode } from '../types'
+import type { CalDAVAuthMode, CalendarProtocol } from '../types'
+import { detectProtocol } from '@/features/jmap/client/detect'
+import { JmapClient } from '@/features/jmap/client/JmapClient'
+import { JmapError } from '@/features/jmap/client/errors'
+import type { SyncErrorCode } from './errorMessages'
 
 const DISCOVERY_TIMEOUT_MS = 8_000
 
@@ -415,8 +419,17 @@ export async function testConnection(
   }
 }
 
+export interface ConnectionOptions {
+  /** Skip JMAP discovery for a new account. */
+  forceCalDAV?: boolean
+  /** Existing accounts test their stored protocol, without switching transports. */
+  protocol?: CalendarProtocol
+}
+
 export interface ProbeResult {
   ok: boolean
+  protocol: CalendarProtocol
+  code?: SyncErrorCode
   /** HTTP status of the last attempt. Absent when the request never completed. */
   status?: number
   error?: string
@@ -427,7 +440,7 @@ export interface ProbeResult {
 }
 
 /**
- * Probe a CalDAV endpoint with the given credentials and report *why* it failed.
+ * Auto-detect JMAP calendars before probing CalDAV and report *why* it failed.
  *
  * Unlike `testConnection`, which answers a bare yes/no via tsdav, this issues a
  * raw PROPFIND so the HTTP status survives, letting callers distinguish a bad
@@ -443,9 +456,11 @@ export async function probeConnection(
   proxyUrl?: string | null,
   originalUrl?: string,
   customHeaders: CustomHeaders = {},
+  options: ConnectionOptions = {},
   authMode: CalDAVAuthMode = 'basic'
 ): Promise<ProbeResult> {
   const hintUrl = originalUrl || serverUrl
+  let protocol: CalendarProtocol = 'caldav'
 
   try {
     if (authMode === 'browser-session' && proxyUrl) {
@@ -454,6 +469,34 @@ export async function probeConnection(
       )
     }
     validateCustomHeaders(customHeaders, proxyUrl)
+    if (!options.forceCalDAV && options.protocol !== 'caldav') {
+      const opts = { serverUrl, username, password, proxyUrl, customHeaders }
+      let detected
+      try {
+        detected = await detectProtocol(opts)
+      } catch (error) {
+        if (error instanceof JmapError) protocol = 'jmap'
+        throw error
+      }
+      // A stored JMAP account or explicit session URL must not silently become DAV.
+      const explicitSession = /\/(?:jmap\/session|\.well-known\/jmap)\/?(?:[?#]|$)/.test(serverUrl)
+      if (detected.protocol === 'jmap' || options.protocol === 'jmap' || explicitSession) {
+        protocol = 'jmap'
+        const resolvedUrl = detected.protocol === 'jmap' ? detected.serverUrl : serverUrl
+        const client = new JmapClient({ ...opts, serverUrl: resolvedUrl })
+        await client.connect()
+        // Resolving accountId verifies both session and account calendar capabilities.
+        try {
+          void client.accountId
+        } catch {
+          throw new JmapError(i18n.t('errors:connection.jmapNoCalendars'), {
+            code: 'unknown',
+          })
+        }
+        await client.call([['Calendar/get', { accountId: client.accountId }, 'probe']])
+        return { ok: true, protocol, status: 200, resolvedUrl }
+      }
+    }
     const directFetch = createDirectDavFetch(serverUrl, customHeaders)
     const davFetch =
       authMode === 'browser-session' ? createBrowserSessionFetch(directFetch) : directFetch
@@ -545,7 +588,7 @@ export async function probeConnection(
     }
 
     if (result.ok) {
-      return { ok: true, status: result.status, resolvedUrl: baseUrl }
+      return { ok: true, protocol, status: result.status, resolvedUrl: baseUrl }
     }
 
     // Auth failures (401/403) usually mean an app-specific password is
@@ -555,6 +598,7 @@ export async function probeConnection(
 
     return {
       ok: false,
+      protocol,
       status: result.status,
       error: i18n.t('errors:connection.badStatus', { status: result.status }),
       hint: hint ?? undefined,
@@ -564,8 +608,14 @@ export async function probeConnection(
       error instanceof Error ? error.message : i18n.t('errors:connection.unknownError')
     return {
       ok: false,
-      error: i18n.t('errors:connection.failedGeneric', { message: errorMsg }),
-      hint: suggestCalDAVUrl(hintUrl) ?? undefined,
+      protocol,
+      code: error instanceof JmapError ? error.code : undefined,
+      status: error instanceof JmapError ? error.status : undefined,
+      error:
+        protocol === 'jmap'
+          ? errorMsg
+          : i18n.t('errors:connection.failedGeneric', { message: errorMsg }),
+      hint: protocol === 'jmap' ? undefined : (suggestCalDAVUrl(hintUrl) ?? undefined),
     }
   }
 }

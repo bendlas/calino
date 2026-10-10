@@ -1,4 +1,5 @@
 import type { JSX } from 'react'
+import { MarkdownView } from '@/lib/markdown'
 import { useMemo, useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
@@ -30,6 +31,8 @@ import { useContextMenuStore } from '@/store/contextMenuStore'
 import { hapticIfEnabled } from '@/lib/haptics'
 import { useTaskContextMenuItems } from '../hooks/useTaskContextMenuItems'
 import { useTaskCollapse } from '../hooks/useTaskCollapse'
+import { useTaskCalendarLabels } from '../hooks/useTaskCalendarLabels'
+import { TaskCalendarLabel } from './TaskCalendarLabel'
 import { getTaskDescendantIds } from '@/lib/taskTree'
 import { TaskContextMenu } from './TaskContextMenu'
 import { TaskCollapseToggle } from './TaskCollapseToggle'
@@ -144,14 +147,6 @@ function getTaskGroup(task: TaskWithColor): string {
 
 const GROUP_ORDER = ['overdue', 'today', 'week', 'later', 'nodate']
 
-const GROUP_LABELS: Record<string, string> = {
-  overdue: 'Overdue',
-  today: 'Today',
-  week: 'This week',
-  later: 'Later',
-  nodate: 'No due date',
-}
-
 type VirtualItem =
   | { type: 'header'; key: string; label: string; count: number; isOverdue?: boolean }
   | {
@@ -168,6 +163,7 @@ export function TodoView(): JSX.Element {
   const { t } = useTranslation('calendar')
   const events = useCalendarStore((state) => state.events)
   const calendars = useCalendarStore((state) => state.calendars)
+  const { calendarById, taskCalendars, labelsVisible } = useTaskCalendarLabels('tasks')
   const openModal = useCalendarStore((state) => state.openModal)
   const updateEvent = useCalendarStore((state) => state.updateEvent)
   const { updateEvent: updateCalDAVEvent } = useCalDAV()
@@ -344,8 +340,10 @@ export function TodoView(): JSX.Element {
         return {
           ...withColor(task),
           recurrenceLabel: [
-            master ? describeRecurrence(master) : 'Repeating task',
-            `This occurrence: ${formatOccurrenceDate(task.recurrenceId, task.isAllDay)}`,
+            master ? describeRecurrence(master) : t('surface.repeatingTask'),
+            t('ui.todo.thisOccurrence', {
+              date: formatOccurrenceDate(task.recurrenceId, task.isAllDay),
+            }),
           ].join('\n'),
         }
       }
@@ -361,7 +359,7 @@ export function TodoView(): JSX.Element {
         // as completed rather than stranding an undated master in the list.
         return {
           ...withColor({ ...task, completed: true, taskStatus: 'COMPLETED' }),
-          recurrenceLabel: [describeRecurrence(task), 'No occurrences left'].join('\n'),
+          recurrenceLabel: [describeRecurrence(task), t('ui.todo.noOccurrencesLeft')].join('\n'),
         }
       }
       // Keep the master's own id so the subtask tree and drag/re-parent logic,
@@ -377,14 +375,16 @@ export function TodoView(): JSX.Element {
         occurrenceStart: next.occStartStr,
         recurrenceLabel: [
           describeRecurrence(task),
-          `Next: ${formatOccurrenceDate(next.occStartStr, task.isAllDay)}`,
+          t('ui.todo.nextOccurrence', {
+            date: formatOccurrenceDate(next.occStartStr, task.isAllDay),
+          }),
           completedCount > 0
-            ? `${completedCount} completed so far`
-            : 'None completed yet — tick to advance',
+            ? t('ui.todo.completedSoFar', { count: completedCount })
+            : t('ui.todo.noneCompleted'),
         ].join('\n'),
       }
     })
-  }, [events, calendars])
+  }, [events, calendars, t])
 
   const taskCollapse = useTaskCollapse(events)
   const collapsedDescendantIds = useMemo(() => {
@@ -395,15 +395,6 @@ export function TodoView(): JSX.Element {
     return ids
   }, [tasks, taskCollapse.collapsedTaskIds])
 
-  const taskCalendars = useMemo(
-    () =>
-      calendars.filter(
-        (calendar) =>
-          calendar.isVisible &&
-          (!calendar.supportedComponents || calendar.supportedComponents.includes('VTODO'))
-      ),
-    [calendars]
-  )
   const filteredTasks = useMemo(
     () => (projectFilter ? tasks.filter((task) => task.calendarId === projectFilter) : tasks),
     [projectFilter, tasks]
@@ -452,7 +443,7 @@ export function TodoView(): JSX.Element {
             style={{ backgroundColor: selectedProject.color }}
           />
         )}
-        {selectedProject?.name ?? 'All projects'}
+        {selectedProject?.name ?? t('ui.todo.allProjects')}
         <svg aria-hidden="true" viewBox="0 0 16 16" fill="none">
           <path
             d="M4 6l4 4 4-4"
@@ -478,7 +469,7 @@ export function TodoView(): JSX.Element {
               setIsProjectMenuOpen(false)
             }}
           >
-            All projects
+            {t('ui.todo.allProjects')}
           </button>
           {taskCalendars.map((calendar) => (
             <button
@@ -544,7 +535,7 @@ export function TodoView(): JSX.Element {
         if (groupTasks && groupTasks.length > 0) {
           result.push({
             key,
-            label: GROUP_LABELS[key],
+            label: t(`ui.todo.group.${key}`),
             isOverdue: key === 'overdue',
             tasks: groupTasks,
           })
@@ -563,7 +554,7 @@ export function TodoView(): JSX.Element {
 
       result.push({
         key: 'done',
-        label: 'Done',
+        label: t('actions.done', { ns: 'common' }),
         tasks: sortedDone,
       })
     }
@@ -574,7 +565,7 @@ export function TodoView(): JSX.Element {
         tasks: group.tasks.filter((task) => !collapsedDescendantIds.has(task.id)),
       }))
       .filter((group) => group.tasks.length > 0)
-  }, [collapsedDescendantIds, filteredTasks, filter, recentlyCompleted])
+  }, [collapsedDescendantIds, filteredTasks, filter, recentlyCompleted, t])
 
   const handleToggleComplete = useCallback(
     async (task: TaskWithColor): Promise<void> => {
@@ -971,6 +962,57 @@ export function TodoView(): JSX.Element {
       const task = item.task
       const dueInfo = getDueLabel(task, (key) => t(key))
       const isActive = activeTaskId === task.id
+      const hasIndicators = Boolean(
+        task.occurrenceStart || task.recurrenceId || (task.priority && task.priority <= 3)
+      )
+      // Mobile keeps these beneath the title so they do not compete with
+      // the calendar name and due date. Desktop retains its inline layout.
+      const taskIndicators = (
+        <>
+          {(task.occurrenceStart || task.recurrenceId) && (
+            <span
+              className={styles.recurringBadge}
+              aria-label={task.recurrenceLabel || t('surface.repeatingTask')}
+              data-component="task-recurring-badge"
+              data-recurrence={task.recurrenceLabel}
+              onMouseEnter={(e) =>
+                task.recurrenceLabel &&
+                setRecurrenceTip({
+                  text: task.recurrenceLabel,
+                  x: e.clientX,
+                  y: e.clientY,
+                })
+              }
+              onMouseLeave={() => setRecurrenceTip(null)}
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 14 14"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M2 6a5 5 0 0 1 8.5-3.2L12 4" />
+                <path d="M12 8a5 5 0 0 1-8.5 3.2L2 10" />
+                <path d="M12 1.5V4H9.5" />
+                <path d="M2 12.5V10h2.5" />
+              </svg>
+            </span>
+          )}
+          {task.priority && task.priority <= 3 && (
+            <span
+              className={`${styles.priority} ${getPriorityClass(task.priority)}`}
+              data-component="task-priority-badge"
+            >
+              {PRIORITY_LABELS[task.priority]}
+            </span>
+          )}
+        </>
+      )
       return (
         <div
           key={item.key}
@@ -979,16 +1021,18 @@ export function TodoView(): JSX.Element {
           // overlap the one below.
           data-index={index ?? 0}
           ref={index === undefined ? undefined : virtualizer.measureElement}
-          style={{
-            position: transform ? 'absolute' : undefined,
-            top: 0,
-            left: 0,
-            width: '100%',
-            transform,
-            ...(item.orphanAncestors
-              ? { '--orphan-context-height': `${item.orphanAncestors.length * 27}px` }
-              : {}),
-          } as React.CSSProperties}
+          style={
+            {
+              position: transform ? 'absolute' : undefined,
+              top: 0,
+              left: 0,
+              width: '100%',
+              transform,
+              ...(item.orphanAncestors
+                ? { '--orphan-context-height': `${item.orphanAncestors.length * 27}px` }
+                : {}),
+            } as React.CSSProperties
+          }
           className={item.orphanAncestors ? styles.taskOrphanGroup : undefined}
           data-orphan-position={item.orphanPosition}
         >
@@ -1000,7 +1044,10 @@ export function TodoView(): JSX.Element {
                   : ''
               }`}
               data-component="task-parent-context"
-              aria-label={`Parent task${item.orphanAncestors.length > 1 ? 's' : ''}: ${item.orphanAncestors.map((ancestor) => ancestor.title).join(', ')}`}
+              aria-label={t('ui.subtasks.parentContext', {
+                count: item.orphanAncestors.length,
+                titles: item.orphanAncestors.map((ancestor) => ancestor.title).join(', '),
+              })}
             >
               {(item.orphanPosition === 'only' || item.orphanPosition === 'first') &&
                 item.orphanAncestors.map((ancestor, depth) => (
@@ -1057,6 +1104,7 @@ export function TodoView(): JSX.Element {
                 >
                   <button
                     className={styles.taskCheck}
+                    data-component="task-checkbox"
                     onClick={(e) => {
                       e.stopPropagation()
                       handleToggleComplete(task)
@@ -1065,7 +1113,9 @@ export function TodoView(): JSX.Element {
                     // this click — without `stopPropagation` the click would
                     // double-fire as a drag start.
                     onPointerDown={(e) => e.stopPropagation()}
-                    aria-label={task.completed ? 'Mark as incomplete' : 'Mark as complete'}
+                    aria-label={
+                      task.completed ? t('surface.markIncomplete') : t('surface.markComplete')
+                    }
                   >
                     <svg
                       viewBox="0 0 14 14"
@@ -1089,7 +1139,9 @@ export function TodoView(): JSX.Element {
                     }}
                   >
                     <div className={styles.taskTitleRow}>
-                      <div className={styles.taskTitle}>{task.title}</div>
+                      <div className={styles.taskTitle} data-component="task-title">
+                        {task.title}
+                      </div>
                       {taskCollapse.hasSubtasks(task.id) && item.hasLocalSubtasks && (
                         <TaskCollapseToggle
                           taskTitle={task.title}
@@ -1104,7 +1156,7 @@ export function TodoView(): JSX.Element {
                           type="button"
                           className={styles.taskSubtaskPopupButton}
                           data-component="task-subtasks-popup-trigger"
-                          aria-label={`Show subtasks for "${task.title}"`}
+                          aria-label={t('ui.subtasks.show', { title: task.title })}
                           onPointerDown={(event) => event.stopPropagation()}
                           onClick={(event) => {
                             event.stopPropagation()
@@ -1112,7 +1164,9 @@ export function TodoView(): JSX.Element {
                             const descendantIds = new Set(getTaskDescendantIds(tasks, task.id))
                             setSubtaskPopup({
                               parent: task,
-                              subtasks: tasks.filter((candidate) => descendantIds.has(candidate.id)),
+                              subtasks: tasks.filter((candidate) =>
+                                descendantIds.has(candidate.id)
+                              ),
                               position: { x: rect.left, y: rect.bottom + 4 },
                             })
                           }}
@@ -1121,54 +1175,31 @@ export function TodoView(): JSX.Element {
                         </button>
                       )}
                     </div>
-                    {task.description && <div className={styles.taskNote}>{task.description}</div>}
+                    {isMobile && hasIndicators && (
+                      <div className={styles.taskIndicators} data-component="task-indicators">
+                        {taskIndicators}
+                      </div>
+                    )}
+                    {task.description && (
+                      <div className={styles.taskNote} data-component="task-note">
+                        <MarkdownView text={task.description} />
+                      </div>
+                    )}
                   </div>
                   <div className={styles.taskMeta}>
-                    {/* R2.7 — A recurring row stands in for a whole series, and
-                        ticking it advances to the next date rather than
-                        removing it. Without a marker that reads as the row
-                        refusing to go away. */}
-                    {(task.occurrenceStart || task.recurrenceId) && (
+                    {!isMobile && taskIndicators}
+                    <span className={styles.taskCalendarDue}>
+                      <TaskCalendarLabel
+                        calendar={calendarById.get(task.calendarId)}
+                        visible={labelsVisible}
+                        compact={isMobile}
+                      />
                       <span
-                        className={styles.recurringBadge}
-                        aria-label={task.recurrenceLabel || 'Repeating task'}
-                        data-component="task-recurring-badge"
-                        data-recurrence={task.recurrenceLabel}
-                        onMouseEnter={(e) =>
-                          task.recurrenceLabel &&
-                          setRecurrenceTip({
-                            text: task.recurrenceLabel,
-                            x: e.clientX,
-                            y: e.clientY,
-                          })
-                        }
-                        onMouseLeave={() => setRecurrenceTip(null)}
+                        className={`${styles.dueLabel} ${dueInfo.className}`}
+                        data-component="task-due-date"
                       >
-                        <svg
-                          width="12"
-                          height="12"
-                          viewBox="0 0 14 14"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.6"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          aria-hidden="true"
-                        >
-                          <path d="M2 6a5 5 0 0 1 8.5-3.2L12 4" />
-                          <path d="M12 8a5 5 0 0 1-8.5 3.2L2 10" />
-                          <path d="M12 1.5V4H9.5" />
-                          <path d="M2 12.5V10h2.5" />
-                        </svg>
+                        {dueInfo.text}
                       </span>
-                    )}
-                    {task.priority && task.priority <= 3 && (
-                      <span className={`${styles.priority} ${getPriorityClass(task.priority)}`}>
-                        {PRIORITY_LABELS[task.priority]}
-                      </span>
-                    )}
-                    <span className={`${styles.dueLabel} ${dueInfo.className}`}>
-                      {dueInfo.text}
                     </span>
                   </div>
                 </div>
@@ -1191,6 +1222,9 @@ export function TodoView(): JSX.Element {
       virtualizer,
       taskCollapse,
       tasks,
+      calendarById,
+      labelsVisible,
+      isMobile,
       t,
     ]
   )
@@ -1212,12 +1246,12 @@ export function TodoView(): JSX.Element {
             {!isMobile && (
               <div className={styles.tpCount}>
                 <span>
-                  <b>{activeCount}</b> active
+                  <b>{activeCount}</b> {t('ui.todo.activeLabel')}
                 </span>
                 <span className={styles.dim} aria-hidden="true">
                   ·
                 </span>
-                <span>{completedCount} done</span>
+                <span>{t('ui.todo.doneCount', { count: completedCount })}</span>
               </div>
             )}
           </div>
@@ -1239,7 +1273,7 @@ export function TodoView(): JSX.Element {
                 className={`${styles.tab} ${filter === 'all' ? styles.tabActive : ''}`}
                 onClick={() => setFilter('all')}
               >
-                All
+                {t('ui.todo.filterAll')}
               </button>
               <button
                 ref={(el) => {
@@ -1248,7 +1282,7 @@ export function TodoView(): JSX.Element {
                 className={`${styles.tab} ${filter === 'active' ? styles.tabActive : ''}`}
                 onClick={() => setFilter('active')}
               >
-                Active
+                {t('ui.todo.filterActive')}
                 {isMobile && activeCount > 0 && (
                   <span className={styles.tabCount}>{activeCount}</span>
                 )}
@@ -1260,7 +1294,7 @@ export function TodoView(): JSX.Element {
                 className={`${styles.tab} ${filter === 'completed' ? styles.tabActive : ''}`}
                 onClick={() => setFilter('completed')}
               >
-                Done
+                {t('ui.todo.filterDone')}
                 {isMobile && completedCount > 0 && (
                   <span className={styles.tabCount}>{completedCount}</span>
                 )}
@@ -1280,7 +1314,7 @@ export function TodoView(): JSX.Element {
               >
                 <path d="M7 2v10M2 7h10" />
               </svg>
-              {isMobile ? 'Add' : 'Add task'}
+              {isMobile ? t('ui.todo.addShort') : t('surface.addTask')}
             </button>
           </div>
         </div>
@@ -1355,7 +1389,7 @@ export function TodoView(): JSX.Element {
                   }}
                   data-component="todo-empty-create"
                 >
-                  + Create task
+                  {t('ui.todo.createTask')}
                 </button>
               </div>
             )}
@@ -1473,8 +1507,8 @@ export function TodoView(): JSX.Element {
           events={subtaskPopup.subtasks}
           position={subtaskPopup.position}
           title={subtaskPopup.parent.title}
-          countLabel={`${subtaskPopup.subtasks.length} subtask${subtaskPopup.subtasks.length === 1 ? '' : 's'}`}
-          ariaLabel={`Subtasks for ${subtaskPopup.parent.title}`}
+          countLabel={t('ui.subtasks.count', { count: subtaskPopup.subtasks.length })}
+          ariaLabel={t('ui.subtasks.for', { title: subtaskPopup.parent.title })}
           onClose={() => setSubtaskPopup(null)}
           onEventClick={(event) => {
             setSubtaskPopup(null)

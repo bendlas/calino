@@ -75,6 +75,8 @@ export const SYNCABLE_SETTINGS: (keyof UserSettings)[] = [
   'darkTheme',
   'adjustableTheme',
   'hideCompletedTasksInMonthView',
+  'showTaskCalendarLabels',
+  'showSidebarTaskCalendarLabels',
   'useCategoryColors',
   'journalEnabled',
   'taskCollapseOverrides',

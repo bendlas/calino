@@ -96,6 +96,8 @@ export interface CalendarEvent {
   isAllDay: boolean
   color?: string
   categories?: string[]
+  /** RFC 9253 CONCEPT URIs (formal categories). May occur multiple times. */
+  concepts?: string[]
   recurrence?: RecurrenceRule
   reminders?: Reminder[]
   rruleString?: string
@@ -193,6 +195,8 @@ export interface CalendarState {
   selectedEndDate: string | null
   initialTitle: string | null
   initialCalendarId: string | null
+  /** Start day (`yyyy-MM-dd`) a new task opens with, for a multi-day task. */
+  initialTaskStartDate: string | null
   subtaskParentId: string | null
   pendingEventPrefill: ExtractedEventFields | null
   /**
@@ -295,7 +299,8 @@ export interface CalendarActions {
     mode?: EventType,
     initialTitle?: string,
     parentTaskId?: string,
-    initialCalendarId?: string
+    initialCalendarId?: string,
+    initialTaskStartDate?: string
   ) => void
   closeModal: () => void
   setPendingEventPrefill: (fields: ExtractedEventFields | null) => void
@@ -390,6 +395,8 @@ export interface UserSettings {
   adjustableTheme: AdjustableThemeSettings
   caldavDebugMode: boolean
   hideCompletedTasksInMonthView: boolean
+  showTaskCalendarLabels: boolean
+  showSidebarTaskCalendarLabels: boolean
   useCategoryColors: boolean
   showEventIcons: boolean
   sidebarWidth: number

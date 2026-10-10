@@ -666,6 +666,7 @@ describe('discovery', () => {
         undefined,
         undefined,
         {},
+        {},
         'browser-session'
       )
 
@@ -683,6 +684,7 @@ describe('discovery', () => {
         '',
         'https://proxy.example.com',
         undefined,
+        {},
         {},
         'browser-session'
       )
@@ -821,7 +823,11 @@ describe('discovery', () => {
       const result = await probeConnection(
         'https://caldav.example.com/caldav.php/chair/calendar',
         'user',
-        'pw'
+        'pw',
+        undefined,
+        undefined,
+        {},
+        { forceCalDAV: true }
       )
 
       expect(result.ok).toBe(true)

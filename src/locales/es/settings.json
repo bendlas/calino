@@ -4,6 +4,7 @@
     "general": "General",
     "appearance": "Apariencia",
     "calendar": "Calendario",
+    "tasks": "Tareas",
     "categories": "Categorías",
     "notifications": "Notificaciones",
     "sync": "Sincronizar",
@@ -103,7 +104,7 @@
     },
     "syncError": {
       "cors": "Tu servidor está bloqueando la conexión. Esto suele indicar que faltan encabezados CORS. Comprueba que tu servidor CalDAV los envíe y responda a OPTIONS:",
-      "corsHelp": "Sincronización → tu cuenta → <strong>Diagnosticar</strong> te indicará qué falta. Consulta la documentación <link>Baikal CORS</link> para obtener ayuda.",
+      "corsHelp": "Sincronización → tu cuenta → <strong>Diagnosticar</strong> te indicará qué falta. Consulta la documentación <docs>Baikal CORS</docs> para obtener ayuda.",
       "network": "No se pudo conectar con tu servidor CalDAV. Comprueba tu conexión a Internet y que el servidor esté en línea. Desde aquí, la falta de un encabezado CORS se ve igual; si el servidor está activo, prueba <strong>Diagnosticar</strong> en Sincronización.",
       "timeout": "Tu servidor CalDAV tardó demasiado en responder. Puede estar sobrecargado; inténtalo de nuevo dentro de un momento.",
       "auth": "Falló la autenticación. Comprueba tu nombre de usuario y contraseña de CalDAV. Muchos proveedores requieren una contraseña específica de la aplicación.",
@@ -123,6 +124,31 @@
     "thursday": "Jueves",
     "friday": "Viernes",
     "saturday": "Sábado"
+  },
+  "tasks": {
+    "title": "Tareas",
+    "display": "Visualización",
+    "showTaskCalendarLabels": {
+      "label": "Mostrar nombres de calendario en Tareas",
+      "desc": "Muestra el calendario de cada tarea junto a su fecha de vencimiento cuando hay varios calendarios de tareas activados."
+    },
+    "showSidebarTaskCalendarLabels": {
+      "label": "Mostrar nombres de calendario en la barra lateral",
+      "desc": "Muestra el calendario de una tarea al pasar el cursor o darle el foco con el teclado cuando hay varios calendarios de tareas activados."
+    },
+    "hideCompletedTasks": {
+      "label": "Ocultar tareas completadas",
+      "desc": "No mostrar las tareas realizadas en la cuadrícula del calendario"
+    },
+    "reminders": "Recordatorios",
+    "taskDueDateReminders": {
+      "label": "Recordatorios de vencimiento de tareas",
+      "desc": "Avisar cuando venza una tarea: a su hora de vencimiento, o a las 9:00 si solo tiene fecha"
+    },
+    "overdueTaskBadge": {
+      "label": "Insignia de tareas vencidas",
+      "desc": "Mostrar una insignia en el icono de la aplicación cuando haya tareas vencidas"
+    }
   },
   "calendar": {
     "title": "Calendario",
@@ -197,11 +223,6 @@
       "never": "Nunca",
       "current": "Mes actual",
       "all": "Todos"
-    },
-    "hideCompletedTasks": {
-      "label": "Ocultar tareas completadas",
-      "desc": "No mostrar las tareas realizadas en la cuadrícula del calendario",
-      "ariaLabel": "Ocultar tareas completadas"
     },
     "monthViewEventLimit": {
       "label": "Eventos antes del resumen",
@@ -483,17 +504,6 @@
       "betaP1": "La actividad en segundo plano depende de los ajustes de batería del teléfono. Algunos dispositivos Xiaomi, Samsung, OPPO, OnePlus y Huawei restringen las aplicaciones en segundo plano. Si los eventos no están actualizados, configura Calino como <strong>Sin restricciones</strong> en los ajustes de batería de Android.",
       "betaP2": "Si un calendario sincronizado no aparece en tu aplicación de calendario, puede estar oculto. Las aplicaciones suelen ocultar los calendarios nuevos hasta que los marcas en su lista de calendarios."
     },
-    "tasks": "Tareas",
-    "taskDueDateReminders": {
-      "label": "Recordatorios de vencimiento de tareas",
-      "desc": "Avisar cuando llegue la fecha de vencimiento de una tarea",
-      "ariaLabel": "Recordatorios de fecha de vencimiento de tareas"
-    },
-    "overdueTaskBadge": {
-      "label": "Insignia de tareas vencidas",
-      "desc": "Mostrar una insignia en el icono de la aplicación cuando haya tareas vencidas",
-      "ariaLabel": "Insignia de tarea vencida"
-    },
     "test": {
       "label": "Notificación de prueba",
       "descDefault": "Haz clic para activar y probar las notificaciones",
@@ -533,14 +543,20 @@
     "subscribe": "Suscribirse a un calendario (.ics)",
     "confirmRemoveSubscription": "¿Quieres eliminar esta suscripción al calendario? También se eliminarán del dispositivo los eventos suscritos.",
     "confirmRemoveAccount": "¿Seguro que quieres eliminar esta cuenta? Los datos del calendario se conservarán en el dispositivo.",
-    "credentialsNotFound": "Credenciales no encontradas"
+    "credentialsNotFound": "Credenciales no encontradas",
+    "accountProtocol": "Protocolo de la cuenta"
   },
   "data": {
+    "webmcp": {
+      "label": "Acceso de IA del navegador (WebMCP, experimental)",
+      "desc": "Permite que los agentes de IA del navegador lean nombres de calendarios y resúmenes de eventos visibles, abran eventos y preparen borradores para que los revises y guardes. Los resultados pueden enviarse al proveedor de IA del agente. Solo se aplica a este navegador.",
+      "unavailable": "La API de WebMCP no está disponible en esta página. Actívala en el navegador y reinícialo, o usa un navegador compatible con WebMCP."
+    },
     "title": "Datos",
     "importExport": "Importar y exportar",
     "exportCalendar": {
       "label": "Exportar calendario",
-      "desc": "Descarga todos los eventos como un archivo .ics estándar",
+      "desc": "Descargar los eventos de todos los calendarios, o de uno solo, como archivo .ics estándar",
       "exporting": "Exportando…",
       "export": "Exportar .ics"
     },
@@ -593,19 +609,42 @@
     "dismiss": "Descartar",
     "dangerZone": "Zona de peligro",
     "deleteAllEvents": {
-      "label": "Eliminar todos los eventos",
-      "desc": "Eliminar permanentemente todos los eventos de este calendario. Esto no se puede deshacer.",
-      "confirm": "¿Eliminar todos los eventos? Esta acción no se puede deshacer.",
-      "action": "Eliminar todos los eventos"
+      "label": "Eliminar eventos locales",
+      "desc": "Eliminar los eventos del calendario seleccionado solo de este dispositivo. Los eventos de tu servidor CalDAV no se eliminan y pueden reaparecer en la próxima sincronización.",
+      "confirm": "¿Eliminar todos los eventos almacenados en este dispositivo? Los eventos de tu servidor no se eliminan y pueden reaparecer tras la próxima sincronización. Esta acción no se puede deshacer.",
+      "action": "Eliminar eventos locales",
+      "confirmCalendar": "¿Eliminar todos los eventos de «{{name}}» de este dispositivo? Los eventos de tu servidor no se eliminan y pueden reaparecer tras la próxima sincronización. Esta acción no se puede deshacer."
     },
     "resetApp": {
-      "label": "Restablecer Calino",
-      "desc": "Borra todos los datos, ajustes y cuentas conectadas para empezar de nuevo.",
-      "confirm": "¿Seguro que quieres eliminar todos los datos locales? Esta acción no se puede deshacer.",
-      "action": "Restablecer la aplicación"
+      "label": "Restablecer Calino en este dispositivo",
+      "desc": "Borrar todos los ajustes, cuentas conectadas y datos almacenados localmente en este dispositivo y empezar de cero. Los calendarios y eventos de tus servidores no se tocan. Los eventos que solo existen en Calino (sin sincronizar) se pierden.",
+      "confirm": "¿Restablecer Calino en este dispositivo? Se borrarán todos los datos locales, los ajustes y las cuentas conectadas. Los calendarios y eventos de tus servidores no se eliminan, pero los eventos que solo existen en Calino se perderán. Esta acción no se puede deshacer.",
+      "action": "Restablecer este dispositivo"
     },
     "duplicateDeleted": "Evento duplicado eliminado",
-    "duplicateDeleteFailed": "No se pudo eliminar el evento. Inténtalo de nuevo."
+    "duplicateDeleteFailed": "No se pudo eliminar el evento. Inténtalo de nuevo.",
+    "allCalendars": "Todos los calendarios",
+    "calendarPickerLabel": "Calendario",
+    "purgeCalendar": {
+      "label": "Eliminar todos los eventos de un calendario",
+      "desc": "Eliminar permanentemente todos los eventos de un calendario, también de tu servidor CalDAV. Esta acción no se puede deshacer.",
+      "placeholder": "Selecciona un calendario…",
+      "action": "Eliminar todo…",
+      "done_one": "{{count}} evento eliminado de «{{name}}»",
+      "done_other": "{{count}} eventos eliminados de «{{name}}»",
+      "partial": "{{deleted}} eventos eliminados de «{{name}}»; {{failed}} no se pudieron eliminar del servidor y se reintentarán",
+      "dialog": {
+        "title": "Eliminar todos los eventos",
+        "message": "Vas a eliminar todos los eventos de <strong>«{{calendarName}}»</strong>. El calendario en sí se conserva.",
+        "warningRemote_one": "Se eliminará permanentemente <strong>{{count}} evento</strong> de Calino y del servidor. Esta acción no se puede deshacer.",
+        "warningRemote_other": "Se eliminarán permanentemente <strong>{{count}} eventos</strong> de Calino y del servidor. Esta acción no se puede deshacer.",
+        "warningLocal_one": "Se eliminará permanentemente <strong>{{count}} evento</strong> de Calino. Esta acción no se puede deshacer.",
+        "warningLocal_other": "Se eliminarán permanentemente <strong>{{count}} eventos</strong> de Calino. Esta acción no se puede deshacer.",
+        "typeToConfirm": "Escribe el nombre del calendario para confirmar:",
+        "confirm": "Eliminar todos los eventos",
+        "deleting": "Eliminando…"
+      }
+    }
   },
   "aiVision": {
     "title": "Importación de fotos con IA",
@@ -742,8 +781,102 @@
     "summary": {
       "ok": "Todo está bien.",
       "degraded": "La sincronización funcionará, pero el servidor podría configurarse mejor.",
-      "broken": "Hay un problema con este servidor."
+      "broken": "Las comprobaciones siguientes han encontrado un problema. Abra una comprobación fallida para ver qué cambiar.",
+      "broken_page": "Esta página bloqueó la conexión, no su servidor. Abra la comprobación fallida para ver sus opciones.",
+      "broken_credentials": "El servidor respondió, pero rechazó el nombre de usuario o la contraseña."
     },
     "corsNote": "Los resultados marcados como «Inferido» no se pueden leer directamente: los navegadores ocultan a JavaScript los encabezados CORS del servidor."
+  },
+  "ui": {
+    "aiVision": {
+      "hintCheckKey": "Revisa de nuevo tu clave de API y la URL base.",
+      "emptyReply": "El modelo devolvió una respuesta vacía al mensaje de prueba.",
+      "hintReasoning": "Si es un modelo de razonamiento, quizá necesite un límite de tokens superior al que permite esta app; prueba con un modelo sin razonamiento si el problema persiste.",
+      "hintNoVision": "El modelo respondió, pero no parece admitir la comprensión de imágenes. Elige un modelo con capacidad de visión.",
+      "err": {
+        "auth": "Error de autenticación ({{status}}): comprueba que tu clave de API sea correcta.",
+        "authAnthropic": "Error de autenticación ({{status}}): comprueba que tu clave de API de Anthropic sea correcta.",
+        "failed": "La solicitud falló ({{status}}): {{message}}",
+        "failedAnthropic": "La solicitud a Anthropic falló ({{status}}): {{message}}",
+        "failedNoMessage": "La solicitud falló con el estado {{status}}",
+        "failedNoMessageAnthropic": "La solicitud a Anthropic falló con el estado {{status}}",
+        "noText": "La respuesta no contenía texto",
+        "noTextAnthropic": "La respuesta de Anthropic no contenía texto"
+      }
+    },
+    "setup": {
+      "title": "Configuración de Calino",
+      "subtitle": "Genera un archivo de configuración para tu instancia de Calino autoalojada.",
+      "stepAccounts": "Cuentas",
+      "stepPassword": "Contraseña",
+      "stepDownload": "Descarga",
+      "remove": "Quitar {{name}}",
+      "displayName": "Nombre para mostrar",
+      "optional": "(opcional)",
+      "displayNamePlaceholder": "p. ej. Personal, Trabajo",
+      "serverUrl": "URL del servidor",
+      "username": "Usuario",
+      "password": "Contraseña",
+      "connectionSuccessful": "Conexión correcta",
+      "diagnose": "Diagnosticar la conexión",
+      "testing": "Probando…",
+      "testConnection": "Probar conexión",
+      "addAccount": "Añadir cuenta",
+      "subscriptionsHeading": "Suscripciones de calendario (.ics)",
+      "name": "Nombre",
+      "namePlaceholder": "p. ej. Festivos",
+      "calendarUrl": "URL del calendario",
+      "refreshInterval": "Intervalo de actualización (minutos)",
+      "proxyOptional": "URL del proxy (opcional)",
+      "proxyHint": "Solo es necesario si el host del calendario no permite solicitudes de origen cruzado.",
+      "addSubscription": "Añadir suscripción",
+      "next": "Siguiente →",
+      "masterPassword": "Contraseña maestra",
+      "masterPlaceholder": "Elige una contraseña segura",
+      "masterHint": "Esta contraseña se usará para desbloquear tus calendarios en Calino.",
+      "confirmPassword": "Confirmar contraseña",
+      "confirmPlaceholder": "Vuelve a escribirla",
+      "back": "← Atrás",
+      "encrypting": "Cifrando…",
+      "generate": "Generar configuración",
+      "nextSteps": "Siguientes pasos",
+      "step1": "Coloca <code>calino.config.json</code> en la raíz del proyecto",
+      "step2": "Reconstruye: <code>docker compose up -d --build</code>",
+      "step3": "Abre Calino e introduce tu contraseña maestra",
+      "rebuildWarning": "⚠️ La configuración se incorpora al paquete JS durante la compilación. Debes recompilar para que los cambios surtan efecto.",
+      "startOver": "← Empezar de nuevo",
+      "downloadAgain": "Descargar de nuevo",
+      "done": "Listo →",
+      "passwordsMismatch": "Las contraseñas no coinciden.",
+      "passwordTooShort": "La contraseña debe tener al menos 6 caracteres.",
+      "encryptionFailed": "Error al cifrar."
+    },
+    "categories": {
+      "unknown": "Desconocido",
+      "eventCount_one": "{{count}} evento",
+      "eventCount_other": "{{count}} eventos",
+      "matches_one": "{{count}} coincidencia",
+      "matches_other": "{{count}} coincidencias",
+      "uncategorized": "({{count}} sin categoría)",
+      "inCalendar": "{{count}} en {{name}}",
+      "willMatch_one": "Coincidirá con {{count}} evento",
+      "willMatch_other": "Coincidirá con {{count}} eventos",
+      "currentlyUncategorized": "({{count}} actualmente sin categoría)"
+    },
+    "data": {
+      "untitledEvent": "Evento sin título",
+      "start": "Inicio: {{date}}",
+      "end": "Fin: {{date}}",
+      "fix": "Reparar",
+      "delete": "Eliminar",
+      "fixAll": "Reparar todo ({{count}})",
+      "deleteAll": "Eliminar todo",
+      "duplicateIntro": "Estos eventos comparten el mismo ID único (UID) en tu servidor, pero se guardan como elementos separados. Calino solo puede mostrar uno de cada conjunto; los demás se ocultan para mantener estable tu calendario. Suele deberse a una copia masiva hecha en otra aplicación. Para solucionarlo, asigna a cada evento un UID único en tu servidor y vuelve a sincronizar.",
+      "duplicateUid": "UID duplicado: {{uid}}",
+      "kept": "Conservado",
+      "hidden": "Oculto",
+      "deleting": "Eliminando…",
+      "dismiss": "Descartar"
+    }
   }
 }

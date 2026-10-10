@@ -1,14 +1,223 @@
 {
-  "undo": { "eventDeleted": "Ereignis gelöscht", "contactDeleted": "Kontakt gelöscht" },
-  "sync": {
-    "eventSyncRetry": "Ereignis konnte nicht mit dem CalDAV-Server synchronisiert werden. Erneuter Versuch folgt.", "deletionSyncRetry": "Löschung konnte nicht synchronisiert werden. Erneuter Versuch folgt.", "eventRestoreFailed": "Ereignis konnte nicht wiederhergestellt werden.", "duplicateSyncRetry": "Dupliziertes Ereignis konnte nicht synchronisiert werden. Erneuter Versuch folgt.", "genericSyncRetry": "Synchronisierung mit dem CalDAV-Server fehlgeschlagen. Erneuter Versuch folgt.", "deletionSyncRetryGeneric": "Löschung konnte nicht mit dem CalDAV-Server synchronisiert werden. Erneuter Versuch folgt.", "occurrenceDeleteFailed": "Dieser Termin konnte nicht gelöscht werden. Das Ereignis wurde beibehalten.", "seriesDeleteFailed": "Dieses und folgende Ereignisse konnten nicht gelöscht werden. Die Serie wurde beibehalten.", "settingsSaved": "Einstellungen auf dem Server gespeichert.", "settingsSyncEnabled": "Synchronisierung der Einstellungen aktiviert.", "settingsFoundEnabled": "Calino-Einstellungen gefunden — Synchronisierung aktiviert.", "settingsCalendarFoundEnabled": "Calino-Einstellungskalender gefunden — Synchronisierung aktiviert.", "settingsFoundEnabledAuto": "Calino-Einstellungen gefunden — Synchronisierung automatisch aktiviert.", "shortFailure": "{{subject}} fehlgeschlagen: {{reason}}", "subjectDefault": "Synchronisierung"
+  "undo": {
+    "eventDeleted": "Ereignis gelöscht",
+    "taskDeleted": "Aufgabe gelöscht",
+    "journalDeleted": "Journaleintrag gelöscht",
+    "contactDeleted": "Kontakt gelöscht"
   },
-  "syncReason": { "cors": "Ihr Server blockiert die Verbindung (CORS).", "network": "Ihr Server konnte nicht erreicht werden. Er ist möglicherweise offline oder blockiert CORS.", "timeout": "Der Server hat zu lange für eine Antwort gebraucht.", "auth": "Authentifizierungsfehler. Überprüfen Sie Benutzername und Passwort.", "forbidden": "Der Server hat die Änderung abgelehnt. Sie haben möglicherweise keinen Schreibzugriff auf diesen Kalender oder der Server hat die Daten abgelehnt.", "quota": "Der Serverspeicher ist voll. Schaffen Sie Speicherplatz auf dem Server und versuchen Sie es erneut.", "rateLimited": "Der Server begrenzt derzeit die Anfragen. Versuchen Sie es gleich noch einmal.", "notFound": "Die Ressource wurde auf dem Server nicht gefunden.", "conflict": "Dieses Element wurde auf dem Server geändert. Synchronisieren Sie erneut, um die neuere Version zu übernehmen.", "server": "Der Server hat einen Fehler zurückgegeben. Überprüfen Sie seine Protokolle." },
-  "connection": { "corsOrNetwork": "Der Server konnte nicht erreicht werden. Überprüfen Sie die Adresse. Er ist möglicherweise offline oder blockiert ursprungsübergreifende Anfragen.", "timeout": "Der Server hat zu lange für eine Antwort gebraucht.", "auth": "Der Server hat diese Zugangsdaten abgelehnt.", "forbidden": "Der Server hat die Anfrage abgelehnt. Überprüfen Sie, ob Sie Schreibzugriff auf diesen Kalender haben.", "quota": "Der Serverspeicher ist voll. Schaffen Sie Speicherplatz auf dem Server und versuchen Sie es erneut.", "rateLimited": "Der Server begrenzt derzeit die Anfragen. Versuchen Sie es gleich noch einmal.", "notFound": "Der Server hat geantwortet, aber unter dieser Adresse gibt es nichts. Überprüfen Sie den URL-Pfad.", "server": "Der Server hat einen Fehler zurückgegeben. Überprüfen Sie seine Protokolle.", "badStatus": "Server gab Status {{status}} zurück", "failedGeneric": "Verbindung fehlgeschlagen: {{message}}. Dies kann ein CORS-Problem sein — der Server muss ursprungsübergreifende Anfragen erlauben.", "urlHint": "Für {{domain}} versuchen Sie: {{url}}", "unknownError": "Unbekannter Fehler", "fastmailAuthHint": "Fastmail hat diese Zugangsdaten abgelehnt. Fastmail benötigt für CalDAV ein anwendungsspezifisches Passwort — Ihr normales Login-Passwort funktioniert nicht. Erstellen Sie eines unter Einstellungen → Datenschutz & Sicherheit → Integrationen → Neues App-Passwort (Zugriff auf „Kalender (CalDAV)“ gewähren). Verwenden Sie dann Ihre E-Mail-Adresse als Benutzernamen und dieses Passwort." },
-  "broken": { "foundEvents_one": "1 fehlerhaftes Ereignis mit ungültigen Datumsangaben gefunden.", "foundEvents_other": "{{count}} fehlerhafte Ereignisse mit ungültigen Datumsangaben gefunden.", "foundDuplicateUids_one": "1 Gruppe von Ereignissen mit derselben doppelten ID auf Ihrem Server gefunden.", "foundDuplicateUids_other": "{{count}} Gruppen von Ereignissen mit derselben doppelten ID auf Ihrem Server gefunden." },
-  "reminder": { "allDay": "Ganztägig", "startingToday": "Beginnt heute", "startingAt": "Beginnt um {{time}}", "startingTomorrow": "Beginnt morgen", "startingTomorrowAt": "Beginnt morgen um {{time}}", "startingOn": "Beginnt am {{date}}", "startingOnAt": "Beginnt am {{date}} um {{time}}", "snooze5m": "5 Min. schlummern", "testNotificationTitle": "Testbenachrichtigung", "testNotificationBody": "Benachrichtigungen funktionieren! Es ist gerade {{time}}" },
-  "settingsSync": { "notConfigured": "Synchronisierung nicht richtig eingerichtet", "calendarNotFound": "Einstellungskalender nicht gefunden", "accountNotFound": "Konto nicht gefunden", "credentialsNotFound": "Zugangsdaten nicht gefunden", "pullFailed": "Abrufen fehlgeschlagen", "pushFailed": "Senden fehlgeschlagen", "noCalendarsFound": "Keine Kalender gefunden", "enableFailed": "Synchronisierung konnte nicht aktiviert werden", "autoDiscoveryFailed": "Automatische Erkennung fehlgeschlagen", "subject": "Synchronisierung der Einstellungen" },
-  "pending": { "event": "Ereignis", "thisEvent": "dieses Ereignis", "staleEtagUpdateConflict": "„{{title}}“ konnte nicht gespeichert werden — es wurde auf dem Server geändert, während diese Bearbeitung ausstand. Ihre Version wurde lokal gespeichert.", "staleEtagDeleteConflict": "„{{title}}“ konnte nicht gelöscht werden — es wurde auf dem Server geändert, während diese Löschung ausstand. Das Ereignis bleibt auf dem Server.", "moveFailedWithCalendar": "„{{title}}“ konnte nicht nach {{calendar}} verschoben werden. Es befindet sich möglicherweise noch im alten Kalender.", "moveFailedNoCalendar": "„{{title}}“ konnte nicht verschoben werden. Es befindet sich möglicherweise noch im alten Kalender.", "moveCleanupPending": "„{{title}}“ verschoben, aber die alte Kopie in {{calendar}} konnte noch nicht entfernt werden. Erneuter Versuch folgt.", "staleCopyWithCalendar": "Die alte Kopie eines verschobenen Ereignisses konnte nicht aus {{calendar}} entfernt werden. Sie wird möglicherweise doppelt angezeigt — löschen Sie das Duplikat manuell.", "staleCopyNoCalendar": "Die alte Kopie eines verschobenen Ereignisses konnte nicht entfernt werden. Sie wird möglicherweise doppelt angezeigt — löschen Sie das Duplikat manuell." },
-  "account": { "couldNotConnect": "Mit diesen Einstellungen konnte keine Verbindung hergestellt werden" },
-  "headless": { "accountCredentialsMissing": "Konto {{account}} wird übersprungen: Zugangsdaten fehlen", "calendarFailed": "Kalender {{calendar}} fehlgeschlagen: {{error}}", "accountFailed": "Konto {{account}} fehlgeschlagen: {{error}}", "noCalendarsFetched": "Keine Kalender abgerufen; Spiegel bleibt unverändert", "syncDone": "Hintergrundsynchronisierung abgeschlossen: {{events}} Ereignisse aus {{calendars}} Kalendern von {{accounts}} Konto(n)" }
+  "sync": {
+    "eventSyncRetry": "Ereignis konnte nicht mit dem CalDAV-Server synchronisiert werden. Erneuter Versuch folgt.",
+    "deletionSyncRetry": "Löschung konnte nicht synchronisiert werden. Erneuter Versuch folgt.",
+    "eventRestoreFailed": "Ereignis konnte nicht wiederhergestellt werden.",
+    "taskRestoreFailed": "Aufgabe konnte nicht wiederhergestellt werden.",
+    "journalRestoreFailed": "Journaleintrag konnte nicht wiederhergestellt werden.",
+    "duplicateSyncRetry": "Dupliziertes Ereignis konnte nicht synchronisiert werden. Erneuter Versuch folgt.",
+    "genericSyncRetry": "Synchronisierung mit dem CalDAV-Server fehlgeschlagen. Erneuter Versuch folgt.",
+    "deletionSyncRetryGeneric": "Löschung konnte nicht mit dem CalDAV-Server synchronisiert werden. Erneuter Versuch folgt.",
+    "occurrenceDeleteFailed": "Dieser Termin konnte nicht gelöscht werden. Das Ereignis wurde beibehalten.",
+    "seriesDeleteFailed": "Dieses und folgende Ereignisse konnten nicht gelöscht werden. Die Serie wurde beibehalten.",
+    "settingsSaved": "Einstellungen auf dem Server gespeichert.",
+    "settingsSyncEnabled": "Synchronisierung der Einstellungen aktiviert.",
+    "settingsFoundEnabled": "Calino-Einstellungen gefunden — Synchronisierung aktiviert.",
+    "settingsCalendarFoundEnabled": "Calino-Einstellungskalender gefunden — Synchronisierung aktiviert.",
+    "settingsFoundEnabledAuto": "Calino-Einstellungen gefunden — Synchronisierung automatisch aktiviert.",
+    "shortFailure": "{{subject}} fehlgeschlagen: {{reason}}",
+    "subjectDefault": "Synchronisierung"
+  },
+  "syncReason": {
+    "cors": "Ihr Server blockiert die Verbindung (CORS).",
+    "network": "Ihr Server konnte nicht erreicht werden. Er ist möglicherweise offline oder blockiert CORS.",
+    "timeout": "Der Server hat zu lange für eine Antwort gebraucht.",
+    "auth": "Authentifizierungsfehler. Überprüfen Sie Benutzername und Passwort.",
+    "forbidden": "Der Server hat die Änderung abgelehnt. Sie haben möglicherweise keinen Schreibzugriff auf diesen Kalender oder der Server hat die Daten abgelehnt.",
+    "quota": "Der Serverspeicher ist voll. Schaffen Sie Speicherplatz auf dem Server und versuchen Sie es erneut.",
+    "rateLimited": "Der Server begrenzt derzeit die Anfragen. Versuchen Sie es gleich noch einmal.",
+    "notFound": "Die Ressource wurde auf dem Server nicht gefunden.",
+    "conflict": "Dieses Element wurde auf dem Server geändert. Synchronisieren Sie erneut, um die neuere Version zu übernehmen.",
+    "server": "Der Server hat einen Fehler zurückgegeben. Überprüfen Sie seine Protokolle."
+  },
+  "connection": {
+    "corsOrNetwork": "Der Server konnte nicht erreicht werden. Überprüfen Sie die Adresse. Er ist möglicherweise offline oder blockiert ursprungsübergreifende Anfragen.",
+    "timeout": "Der Server hat zu lange für eine Antwort gebraucht.",
+    "auth": "Der Server hat diese Zugangsdaten abgelehnt.",
+    "forbidden": "Der Server hat die Anfrage abgelehnt. Überprüfen Sie, ob Sie Schreibzugriff auf diesen Kalender haben.",
+    "quota": "Der Serverspeicher ist voll. Schaffen Sie Speicherplatz auf dem Server und versuchen Sie es erneut.",
+    "rateLimited": "Der Server begrenzt derzeit die Anfragen. Versuchen Sie es gleich noch einmal.",
+    "notFound": "Der Server hat geantwortet, aber unter dieser Adresse gibt es nichts. Überprüfen Sie den URL-Pfad.",
+    "server": "Der Server hat einen Fehler zurückgegeben. Überprüfen Sie seine Protokolle.",
+    "badStatus": "Server gab Status {{status}} zurück",
+    "failedGeneric": "Verbindung fehlgeschlagen: {{message}}. Dies kann ein CORS-Problem sein — der Server muss ursprungsübergreifende Anfragen erlauben.",
+    "urlHint": "Für {{domain}} versuchen Sie: {{url}}",
+    "unknownError": "Unbekannter Fehler",
+    "fastmailAuthHint": "Fastmail hat diese Zugangsdaten abgelehnt. Fastmail benötigt für CalDAV ein anwendungsspezifisches Passwort — Ihr normales Login-Passwort funktioniert nicht. Erstellen Sie eines unter Einstellungen → Datenschutz & Sicherheit → Integrationen → Neues App-Passwort (Zugriff auf „Kalender (CalDAV)“ gewähren). Verwenden Sie dann Ihre E-Mail-Adresse als Benutzernamen und dieses Passwort.",
+    "jmapNoCalendars": "Dieses JMAP-Konto unterstützt keine Kalender.",
+    "jmapCors": "Der JMAP-Server blockiert ursprungsübergreifende Anfragen (CORS). Prüfen Sie die CORS-Einstellungen oder verwenden Sie einen Proxy.",
+    "jmapNetwork": "Der JMAP-Server ist nicht erreichbar. Prüfen Sie Adresse und Verbindung; fehlende CORS-Header können ebenfalls die Ursache sein.",
+    "blockedHttp": "Calino kann von hier aus keine Verbindung zu einem reinen http://-Server herstellen. Diese Seite erlaubt nur https://-Verbindungen, die Anfrage wurde daher schon im Browser blockiert. Verwenden Sie eine https://-Adresse, richten Sie einen Proxy ein oder betreiben Sie ein selbst gehostetes Calino (CALINO_SELF_HOSTED=true), das http erlaubt."
+  },
+  "broken": {
+    "foundEvents_one": "1 fehlerhaftes Ereignis mit ungültigen Datumsangaben gefunden.",
+    "foundEvents_other": "{{count}} fehlerhafte Ereignisse mit ungültigen Datumsangaben gefunden.",
+    "foundDuplicateUids_one": "1 Gruppe von Ereignissen mit derselben doppelten ID auf Ihrem Server gefunden.",
+    "foundDuplicateUids_other": "{{count}} Gruppen von Ereignissen mit derselben doppelten ID auf Ihrem Server gefunden."
+  },
+  "reminder": {
+    "allDay": "Ganztägig",
+    "startingToday": "Beginnt heute",
+    "startingAt": "Beginnt um {{time}}",
+    "startingTomorrow": "Beginnt morgen",
+    "startingTomorrowAt": "Beginnt morgen um {{time}}",
+    "startingOn": "Beginnt am {{date}}",
+    "startingOnAt": "Beginnt am {{date}} um {{time}}",
+    "snooze5m": "5 Min. schlummern",
+    "testNotificationTitle": "Testbenachrichtigung",
+    "testNotificationBody": "Benachrichtigungen funktionieren! Es ist gerade {{time}}",
+    "dueToday": "Heute fällig",
+    "dueTomorrow": "Morgen fällig",
+    "dueOn": "Fällig am {{date}}",
+    "dueAt": "Fällig um {{time}}",
+    "dueTomorrowAt": "Morgen um {{time}} fällig",
+    "dueOnAt": "Fällig am {{date}} um {{time}}",
+    "overdueTasks_one": "{{count}} überfällige Aufgabe",
+    "overdueTasks_other": "{{count}} überfällige Aufgaben",
+    "overdueTasksBody": "Öffne Calino, um sie anzusehen",
+    "overdueChannelName": "Überfällige Aufgaben"
+  },
+  "settingsSync": {
+    "notConfigured": "Synchronisierung nicht richtig eingerichtet",
+    "calendarNotFound": "Einstellungskalender nicht gefunden",
+    "accountNotFound": "Konto nicht gefunden",
+    "credentialsNotFound": "Zugangsdaten nicht gefunden",
+    "pullFailed": "Abrufen fehlgeschlagen",
+    "pushFailed": "Senden fehlgeschlagen",
+    "noCalendarsFound": "Keine Kalender gefunden",
+    "enableFailed": "Synchronisierung konnte nicht aktiviert werden",
+    "autoDiscoveryFailed": "Automatische Erkennung fehlgeschlagen",
+    "subject": "Synchronisierung der Einstellungen"
+  },
+  "pending": {
+    "event": "Ereignis",
+    "thisEvent": "dieses Ereignis",
+    "staleEtagUpdateConflict": "„{{title}}“ konnte nicht gespeichert werden — es wurde auf dem Server geändert, während diese Bearbeitung ausstand. Ihre Version wurde lokal gespeichert.",
+    "staleEtagDeleteConflict": "„{{title}}“ konnte nicht gelöscht werden — es wurde auf dem Server geändert, während diese Löschung ausstand. Das Ereignis bleibt auf dem Server.",
+    "moveFailedWithCalendar": "„{{title}}“ konnte nicht nach {{calendar}} verschoben werden. Es befindet sich möglicherweise noch im alten Kalender.",
+    "moveFailedNoCalendar": "„{{title}}“ konnte nicht verschoben werden. Es befindet sich möglicherweise noch im alten Kalender.",
+    "moveCleanupPending": "„{{title}}“ verschoben, aber die alte Kopie in {{calendar}} konnte noch nicht entfernt werden. Erneuter Versuch folgt.",
+    "staleCopyWithCalendar": "Die alte Kopie eines verschobenen Ereignisses konnte nicht aus {{calendar}} entfernt werden. Sie wird möglicherweise doppelt angezeigt — löschen Sie das Duplikat manuell.",
+    "staleCopyNoCalendar": "Die alte Kopie eines verschobenen Ereignisses konnte nicht entfernt werden. Sie wird möglicherweise doppelt angezeigt — löschen Sie das Duplikat manuell."
+  },
+  "account": {
+    "couldNotConnect": "Mit diesen Einstellungen konnte keine Verbindung hergestellt werden"
+  },
+  "headless": {
+    "accountCredentialsMissing": "Konto {{account}} wird übersprungen: Zugangsdaten fehlen",
+    "calendarFailed": "Kalender {{calendar}} fehlgeschlagen: {{error}}",
+    "accountFailed": "Konto {{account}} fehlgeschlagen: {{error}}",
+    "noCalendarsFetched": "Keine Kalender abgerufen; Spiegel bleibt unverändert",
+    "syncDone": "Hintergrundsynchronisierung abgeschlossen: {{events}} Ereignisse aus {{calendars}} Kalendern von {{accounts}} Konto(n)"
+  },
+  "toast": {
+    "history": {
+      "undo": "Rückgängig",
+      "redo": "Wiederholen"
+    },
+    "aiImport": {
+      "setupNeeded": "Richte zuerst den KI-Fotoimport in den Einstellungen ein",
+      "openSettings": "Einstellungen öffnen",
+      "noDetails": "In diesem Foto wurden keine Ereignisdetails gefunden. Versuche es mit einer schärferen Aufnahme oder füge es manuell hinzu.",
+      "addManually": "Manuell hinzufügen",
+      "keyInvalid": "Dein KI-API-Schlüssel scheint ungültig oder abgelaufen zu sein.",
+      "unreachable": "Der KI-Anbieter ist nicht erreichbar — prüfe deine Verbindung.",
+      "unreadable": "Die Ereignisdetails konnten nicht aus diesem Foto gelesen werden.",
+      "blankFallback": "{{message}} Stattdessen wird ein leeres Ereignis geöffnet.",
+      "cameraDenied": "Kamerazugriff verweigert. Aktiviere ihn in den Android-Einstellungen, um diese Funktion zu nutzen.",
+      "cameraUnavailable": "Kein Zugriff auf Kamera oder Fotomediathek möglich.",
+      "reviewEach_task": "Prüfe und speichere jede Aufgabe — {{total}} in diesem Foto gefunden.",
+      "reviewEach_event": "Prüfe und speichere jedes Ereignis — {{total}} in diesem Foto gefunden.",
+      "reviewEach_item": "Prüfe und speichere jeden Eintrag — {{total}} in diesem Foto gefunden.",
+      "sharedFirstOnly": "Es wurde nur das erste geteilte Foto verwendet — teile vorerst nur eines auf einmal.",
+      "sharedUnreadable": "Das geteilte Foto konnte nicht gelesen werden."
+    },
+    "ics": {
+      "notIcs": "Diese Datei ist kein .ics-Kalender",
+      "unreadable": "Diese Datei konnte nicht gelesen werden"
+    },
+    "attachments": {
+      "tooLarge": "Die Datei „{{name}}“ überschreitet das Limit von {{limit}} MB",
+      "mayNotSync": "Die Datei „{{name}}“ ist größer als {{limit}} MB und wird möglicherweise nicht korrekt synchronisiert",
+      "saveLocal": "Anhänge konnten nicht lokal gespeichert werden",
+      "readFailed": "{{name}} konnte nicht gelesen werden",
+      "readFailedGeneric": "Dateien konnten nicht gelesen werden",
+      "unavailable": "Anhangsdaten sind nicht verfügbar. Öffne das Ereignis erneut."
+    },
+    "journal": {
+      "syncUpdateRetry": "Aktualisierung konnte nicht synchronisiert werden. Erneuter Versuch folgt.",
+      "syncEntryRetry": "Eintrag konnte nicht synchronisiert werden. Erneuter Versuch folgt."
+    },
+    "sync": {
+      "failed": "Synchronisierung fehlgeschlagen",
+      "deleteSubject": "Löschen",
+      "retrying": "Änderungen werden erneut gesendet …",
+      "retrySent_one": "{{count}} Änderung gesendet",
+      "retrySent_other": "{{count}} Änderungen gesendet",
+      "retryPartial": "{{succeeded}} gesendet, {{failed}} warten noch",
+      "offlineWaiting": "Offline — Änderungen werden gesendet, sobald du wieder verbunden bist",
+      "waiting_one": "{{count}} Änderung wartet",
+      "waiting_other": "{{count}} Änderungen warten",
+      "waitingOffline_one": "{{count}} Änderung wartet — offline",
+      "waitingOffline_other": "{{count}} Änderungen warten — offline"
+    },
+    "notifications": {
+      "blocked": "Benachrichtigungen sind blockiert. Passe die Website-Berechtigungen in den Browsereinstellungen an, um Erinnerungen zu aktivieren.",
+      "calendarBlocked": "Der Kalenderzugriff ist blockiert. Erteile ihn in den Android-App-Einstellungen, um Ereignisse mit dem Gerätekalender zu synchronisieren."
+    },
+    "tasks": {
+      "movedToday": "Auf heute verschoben",
+      "movedTomorrow": "Auf morgen verschoben",
+      "movedTo": "Auf {{date}} verschoben"
+    },
+    "contacts": {
+      "fallbackLabel": "Kontakt",
+      "rejected_create": "„{{label}}“ konnte auf dem Server nicht erstellt werden: {{reason}}",
+      "rejected_update": "„{{label}}“ konnte auf dem Server nicht aktualisiert werden: {{reason}}",
+      "rejected_delete": "„{{label}}“ konnte auf dem Server nicht gelöscht werden: {{reason}}",
+      "conflict": "Konflikt bei „{{name}}“ — Serverversion beibehalten",
+      "syncFailed": "Synchronisierung der Kontakte fehlgeschlagen: {{message}}"
+    },
+    "storage": {
+      "full": "Der Speicher ist voll. Deine Daten werden möglicherweise nicht gespeichert.",
+      "error": "Speicherfehler. Deine Daten werden möglicherweise nicht gespeichert."
+    },
+    "pendingDrop_create": "„{{title}}“ konnte nicht erstellt werden — {{reason}}",
+    "pendingDrop_update": "„{{title}}“ konnte nicht gespeichert werden — {{reason}}",
+    "pendingDrop_delete": "„{{title}}“ konnte nicht gelöscht werden — {{reason}}",
+    "pendingDrop_move": "„{{title}}“ konnte nicht verschoben werden — {{reason}}",
+    "pendingDrop_deleteHref": "Die alte Kopie von „{{title}}“ konnte nicht entfernt werden — {{reason}}",
+    "pendingReason": {
+      "savedLocally": "deine Änderung wurde lokal gespeichert.",
+      "staysOnServer": "das Ereignis bleibt auf dem Server.",
+      "maybeOldCalendar": "das Ereignis befindet sich möglicherweise noch im alten Kalender.",
+      "alreadyExists": "ist bereits auf dem Server vorhanden — prüfe, ob es ein Duplikat gibt.",
+      "duplicateUid": "ein Duplikat dieses Ereignisses ist bereits auf dem Server vorhanden.",
+      "invalidData": "der Server hat die Ereignisdaten für diesen Kalender als ungültig abgelehnt.",
+      "forbidden": "der Server hat die Änderung abgelehnt (403). Möglicherweise fehlt dir die Schreibberechtigung für diesen Kalender.",
+      "storageFull": "der Speicher des Servers ist voll (507).",
+      "gone": "der Kalender oder das Ereignis existiert auf dem Server nicht mehr."
+    }
+  },
+  "ui": {
+    "carddav": {
+      "conflict": "Der Kontakt wurde auf dem Server geändert. Bitte aktualisieren und erneut versuchen.",
+      "permission": "Du hast keine Berechtigung, diesen Kontakt zu ändern.",
+      "sizeLimit": "Der Kontakt überschreitet das Größenlimit des Servers ({{max}} Byte).",
+      "version": "Der Server akzeptiert keine vCard-Version, die dieser Client erzeugen kann."
+    },
+    "moveLostSource": "Beim Verschieben ging die Quellressource verloren: {{message}}",
+    "dragSync": {
+      "event": "Das verschobene Ereignis konnte nicht synchronisiert werden",
+      "task": "Die verschobene Aufgabe konnte nicht synchronisiert werden",
+      "item": "Das verschobene Element konnte nicht synchronisiert werden",
+      "hierarchy": "Die Änderung der Aufgabenhierarchie konnte nicht synchronisiert werden"
+    }
+  }
 }

@@ -16,7 +16,7 @@ import {
   connectionErrorMessage,
   type SyncErrorCode,
 } from '@/features/caldav/client/errorMessages'
-import { isCleartextUrl, CLEARTEXT_WARNING } from '@/features/caldav/client/insecureUrl'
+import { isCleartextUrl, cleartextWarning } from '@/features/caldav/client/insecureUrl'
 import { DiagnosticsPanel } from '@/features/settings/components/DiagnosticsPanel'
 import type { CalDAVAccount } from '@/features/caldav/types'
 import type { CalDAVAuthMode } from '@/features/caldav/types'
@@ -46,6 +46,8 @@ export function AddCalendarModal({
   account,
 }: AddCalendarModalProps): JSX.Element | null {
   const { t } = useTranslation('calendar')
+  const [forceCalDAV, setForceCalDAV] = useState(false)
+  const [connectionProtocol, setConnectionProtocol] = useState<'caldav' | 'jmap' | null>(null)
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'success' | 'error'>('idle')
   const [connectionError, setConnectionError] = useState<string>('')
   const [connectionHint, setConnectionHint] = useState<string>('')
@@ -72,6 +74,13 @@ export function AddCalendarModal({
   const progressTask = useProgressStore(selectActiveTask)
   const isEdit = mode === 'edit' && account !== undefined
   const authMode = authModeDraft ?? account?.authMode ?? 'basic'
+  // Diagnostics should test what connecting would use: an existing account's
+  // stored protocol, otherwise auto-detect unless the user forced CalDAV.
+  const diagnosticsProtocol: DiagnosticsOptions['protocol'] = isEdit
+    ? (account?.protocol ?? 'caldav')
+    : forceCalDAV
+      ? 'caldav'
+      : 'auto'
   const formRef = useRef<HTMLFormElement>(null)
   const isSavingRef = useRef(false)
 
@@ -91,6 +100,8 @@ export function AddCalendarModal({
 
   const doClose = useCallback((): void => {
     setConnectionStatus('idle')
+    setConnectionProtocol(null)
+    setForceCalDAV(false)
     setConnectionError('')
     setConnectionHint('')
     setDiagnoseTarget(null)
@@ -161,15 +172,22 @@ export function AddCalendarModal({
         proxyUrl,
         originalUrl,
         customHeaders,
+        isEdit ? { protocol: account.protocol ?? 'caldav' } : { forceCalDAV },
         mode
       )
 
       setConnectionStatus(result.ok ? 'success' : 'error')
+      setConnectionProtocol(result.protocol)
       if (!result.ok) {
         setConnectionError(
-          result.error ? connectionErrorMessage(result.error) : 'Connection failed.'
+          result.error
+            ? connectionErrorMessage(result.error, result.code, proxyUrl ? undefined : serverUrl)
+            : t('ui.calModal.connectionFailed')
         )
-        recordFailure(result.error ? classifySyncError(result.error) : 'unknown', proxyUrl)
+        recordFailure(
+          result.code ?? (result.error ? classifySyncError(result.error) : 'unknown'),
+          proxyUrl
+        )
         if (result.hint) {
           setConnectionHint(result.hint)
         }
@@ -181,6 +199,7 @@ export function AddCalendarModal({
           proxyUrl,
           originalUrl,
           customHeaders,
+          protocol: diagnosticsProtocol,
         })
       } else {
         setDiagnoseTarget(null)
@@ -251,7 +270,7 @@ export function AddCalendarModal({
     }
     if (formAuthMode === 'basic' && !effectivePassword) {
       setConnectionStatus('error')
-      setConnectionError('Enter a password to test the connection.')
+      setConnectionError(t('ui.calModal.enterPassword'))
       return
     }
 
@@ -286,7 +305,8 @@ export function AddCalendarModal({
       error instanceof Error
         ? connectionErrorMessage(
             error.message,
-            error instanceof CalDAVConnectionError ? error.code : undefined
+            error instanceof CalDAVConnectionError ? error.code : undefined,
+            proxyUrl ? undefined : serverUrl
           )
         : fallback
     )
@@ -322,12 +342,7 @@ export function AddCalendarModal({
       // Re-pointing the account at a different principal invalidates the
       // calendars stored under it, so they get re-fetched and reconciled.
       const principalChanged = serverUrl !== account.serverUrl || username !== account.username
-      if (
-        principalChanged &&
-        !confirm(
-          'Changing the server URL or username will re-sync the calendars for this account. Continue?'
-        )
-      ) {
+      if (principalChanged && !confirm(t('ui.calModal.confirmResync'))) {
         return
       }
     }
@@ -367,6 +382,13 @@ export function AddCalendarModal({
           accountName,
           proxyUrl,
           customHeaders,
+          {
+            forceCalDAV,
+            onProtocolDetected: (protocol) => {
+              setConnectionProtocol(protocol)
+              setConnectionStatus('success')
+            },
+          },
           formAuthMode
         )
       }
@@ -376,9 +398,7 @@ export function AddCalendarModal({
         error,
         serverUrl,
         proxyUrl,
-        isEdit
-          ? 'Failed to update account. Please try again.'
-          : 'Failed to add account. Please try again.'
+        isEdit ? t('ui.calModal.updateAccountFailed') : t('ui.calModal.addAccountFailed')
       )
       // A blank password in edit mode means "keep the current one", so
       // diagnostics has to test the stored credential, not the empty field.
@@ -394,6 +414,7 @@ export function AddCalendarModal({
         proxyUrl: proxyUrl ?? null,
         originalUrl: serverUrl,
         customHeaders,
+        protocol: diagnosticsProtocol,
       })
     } finally {
       isSavingRef.current = false
@@ -438,7 +459,8 @@ export function AddCalendarModal({
         <form ref={formRef} key={account?.id ?? 'add'} onSubmit={handleSubmit}>
           <div className={styles.formGroup}>
             <label htmlFor="accountName" className={styles.formLabel}>
-              Display name <span className={styles.formLabelOptional}>(optional)</span>
+              {t('ui.calModal.displayName')}{' '}
+              <span className={styles.formLabelOptional}>{t('ui.calModal.optional')}</span>
             </label>
             <input
               id="accountName"
@@ -471,7 +493,7 @@ export function AddCalendarModal({
           )}
           <div className={styles.formGroup}>
             <label htmlFor="serverUrl" className={styles.formLabel}>
-              Server URL
+              {t('ui.calModal.serverUrl')}
             </label>
             <input
               id="serverUrl"
@@ -482,13 +504,15 @@ export function AddCalendarModal({
               onChange={(e) => setUrlDraft(e.target.value)}
               required
             />
-            {isCleartextUrl(urlDraft) && <div className={styles.formWarn}>{CLEARTEXT_WARNING}</div>}
+            {isCleartextUrl(urlDraft) && (
+              <div className={styles.formWarn}>{cleartextWarning()}</div>
+            )}
           </div>
           {authMode === 'basic' ? (
             <div className={styles.credentialsRow}>
               <div className={styles.formGroup}>
                 <label htmlFor="username" className={styles.formLabel}>
-                  Username
+                  {t('ui.calModal.username')}
                 </label>
                 <input
                   id="username"
@@ -501,7 +525,7 @@ export function AddCalendarModal({
               </div>
               <div className={styles.formGroup}>
                 <label htmlFor="password" className={styles.formLabel}>
-                  Password
+                  {t('ui.calModal.password')}
                 </label>
                 <input
                   id="password"
@@ -520,7 +544,8 @@ export function AddCalendarModal({
             <>
               <div className={styles.formGroup}>
                 <label htmlFor="username" className={styles.formLabel}>
-                  Username <span className={styles.formLabelOptional}>(optional)</span>
+                  {t('ui.calModal.username')}{' '}
+                  <span className={styles.formLabelOptional}>{t('ui.calModal.optional')}</span>
                 </label>
                 <input
                   id="username"
@@ -534,7 +559,14 @@ export function AddCalendarModal({
             </>
           )}
           {connectionStatus === 'success' && (
-            <p className={styles.successMessage}>{t('surface.connectionSuccessful')}</p>
+            <p className={styles.successMessage}>
+              {t('surface.connectionSuccessful')}{' '}
+              {connectionProtocol && (
+                <span data-component="account-protocol" aria-label={t('surface.accountProtocol')}>
+                  {connectionProtocol === 'jmap' ? 'JMAP' : 'CalDAV'}
+                </span>
+              )}
+            </p>
           )}
           {connectionStatus === 'error' && (
             <div className={styles.errorBox} role="alert" data-component="connection-error">
@@ -561,7 +593,7 @@ export function AddCalendarModal({
                       onClick={() => setShowDiagnostics(true)}
                       data-action="show-diagnostics"
                     >
-                      Diagnose the connection
+                      {t('ui.calModal.diagnose')}
                     </button>
                   )}
                 </div>
@@ -579,6 +611,21 @@ export function AddCalendarModal({
               onChange: setProxyDraft,
               placeholder: t('surface.proxyUrlPlaceholder'),
             }}
+            forceCalDAV={
+              isEdit
+                ? undefined
+                : {
+                    checked: forceCalDAV,
+                    onChange: (checked) => {
+                      setForceCalDAV(checked)
+                      clearFailure()
+                    },
+                    disabled: isSaving || isTesting,
+                    label: t('surface.forceCalDAV'),
+                    hint: t('surface.forceCalDAVHint'),
+                    summary: t('surface.forceCalDAVSummary'),
+                  }
+            }
             open={settingsOpen}
             onOpenChange={setSettingsOpen}
             nudge={nudge?.target ?? null}
@@ -628,7 +675,7 @@ export function AddCalendarModal({
               onClick={requestClose}
               disabled={isSaving}
             >
-              Cancel
+              {t('actions.cancel', { ns: 'common' })}
             </button>
             {isEdit && (
               <button
@@ -638,7 +685,7 @@ export function AddCalendarModal({
                 disabled={isTesting || isSaving}
                 data-action="test-connection"
               >
-                {isTesting ? 'Testing…' : 'Test'}
+                {isTesting ? t('ui.calModal.testing') : t('ui.calModal.test')}
               </button>
             )}
             <button
@@ -652,13 +699,13 @@ export function AddCalendarModal({
               <span>
                 {isSaving
                   ? isEdit
-                    ? 'Saving…'
-                    : 'Connecting…'
+                    ? t('ui.calModal.saving')
+                    : t('ui.calModal.connecting')
                   : isEdit
-                    ? 'Save Changes'
+                    ? t('ui.calModal.saveChanges')
                     : hasFailed
-                      ? 'Try again'
-                      : 'Connect'}
+                      ? t('ui.calModal.tryAgain')
+                      : t('ui.calModal.connect')}
               </span>
             </button>
           </div>

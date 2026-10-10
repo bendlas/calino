@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { SettingsPageHeading } from './SettingsPageHeading'
 import { toast } from 'sonner'
+import i18n from '@/lib/i18n'
 import { Capacitor } from '@capacitor/core'
 import { useSettingsStore } from '@/store/settingsStore'
 import {
@@ -27,24 +28,21 @@ import styles from './Settings.module.css'
 // R3.9 — copy reused by both the toggle and the test button when the
 // browser denies the permission prompt. Surfaced to the user instead of
 // silently doing nothing.
-const PERMISSION_DENIED_TOAST =
-  'Notifications are blocked. Update site permissions in your browser settings to enable reminders.'
 
 const isNative = Capacitor.isNativePlatform()
 const supportsCalendarMirror = isCalendarMirrorSupported()
 
-const CALENDAR_PERMISSION_DENIED_TOAST =
-  'Calendar access is blocked. Grant it in Android app settings to sync events to your device calendar.'
-
-export function NotificationSettings({ searchControl }: { searchControl?: JSX.Element }): JSX.Element {
+export function NotificationSettings({
+  searchControl,
+}: {
+  searchControl?: JSX.Element
+}): JSX.Element {
   const { t } = useTranslation('settings')
   const enableDesktopNotifications = useSettingsStore((s) => s.enableDesktopNotifications)
   const enableCalendarMirror = useSettingsStore((s) => s.enableCalendarMirror)
   const mirrorStatus = useCalendarMirrorStore((s) => s.status)
   const mirrorError = useCalendarMirrorStore((s) => s.lastError)
   const enableSoundAlerts = useSettingsStore((s) => s.enableSoundAlerts)
-  const taskDueDateReminders = useSettingsStore((s) => s.taskDueDateReminders)
-  const overdueTaskBadge = useSettingsStore((s) => s.overdueTaskBadge)
   const updateSettings = useSettingsStore((s) => s.updateSettings)
   const [permissionStatus, setPermissionStatus] = useState(
     isNative ? 'default' : getNotificationPermission()
@@ -67,7 +65,7 @@ export function NotificationSettings({ searchControl }: { searchControl?: JSX.El
         : await requestNotificationPermission()
       setPermissionStatus(newPermission)
       if (newPermission === 'denied') {
-        toast.error(PERMISSION_DENIED_TOAST, { duration: 8000 })
+        toast.error(i18n.t('errors:toast.notifications.blocked'), { duration: 8000 })
         return
       }
       if (newPermission !== 'granted') {
@@ -75,7 +73,7 @@ export function NotificationSettings({ searchControl }: { searchControl?: JSX.El
       }
     }
     if (permissionStatus === 'denied') {
-      toast.error(PERMISSION_DENIED_TOAST, { duration: 8000 })
+      toast.error(i18n.t('errors:toast.notifications.blocked'), { duration: 8000 })
       return
     }
     updateSettings({ enableDesktopNotifications: !enableDesktopNotifications })
@@ -91,7 +89,7 @@ export function NotificationSettings({ searchControl }: { searchControl?: JSX.El
     const granted =
       (await checkCalendarMirrorPermission()) || (await requestCalendarMirrorPermission())
     if (!granted) {
-      toast.error(CALENDAR_PERMISSION_DENIED_TOAST, { duration: 8000 })
+      toast.error(i18n.t('errors:toast.notifications.calendarBlocked'), { duration: 8000 })
       return
     }
     updateSettings({ enableCalendarMirror: true })
@@ -106,7 +104,7 @@ export function NotificationSettings({ searchControl }: { searchControl?: JSX.El
         : await requestNotificationPermission()
       setPermissionStatus(newPermission)
       if (newPermission === 'denied') {
-        toast.error(PERMISSION_DENIED_TOAST, { duration: 8000 })
+        toast.error(i18n.t('errors:toast.notifications.blocked'), { duration: 8000 })
         return
       }
       if (newPermission !== 'granted') {
@@ -114,7 +112,7 @@ export function NotificationSettings({ searchControl }: { searchControl?: JSX.El
       }
     }
     if (permissionStatus === 'denied') {
-      toast.error(PERMISSION_DENIED_TOAST, { duration: 8000 })
+      toast.error(i18n.t('errors:toast.notifications.blocked'), { duration: 8000 })
       return
     }
     if (isNative) {
@@ -207,7 +205,9 @@ export function NotificationSettings({ searchControl }: { searchControl?: JSX.El
                       : mirrorStatus === 'denied'
                         ? t('notifications.calendarMirror.descDenied')
                         : mirrorStatus === 'failed'
-                          ? mirrorError ? t('notifications.calendarMirror.descFailed', { error: mirrorError }) : t('notifications.calendarMirror.descFailedNoDetail')
+                          ? mirrorError
+                            ? t('notifications.calendarMirror.descFailed', { error: mirrorError })
+                            : t('notifications.calendarMirror.descFailedNoDetail')
                           : t('notifications.calendarMirror.descSyncing')}
               </div>
             </div>
@@ -235,9 +235,7 @@ export function NotificationSettings({ searchControl }: { searchControl?: JSX.El
           >
             <div className={styles.rowInfo}>
               <div className={styles.rowLabel}>{t('notifications.calendarMirrorInfo.label')}</div>
-              <div className={styles.rowDesc}>
-                {t('notifications.calendarMirrorInfo.desc')}
-              </div>
+              <div className={styles.rowDesc}>{t('notifications.calendarMirrorInfo.desc')}</div>
             </div>
             <div className={styles.rowControl}>
               <button
@@ -260,9 +258,7 @@ export function NotificationSettings({ searchControl }: { searchControl?: JSX.El
         title={t('notifications.calendarMirrorModal.title')}
       >
         <div className={styles.infoBody}>
-          <p>
-            {t('notifications.calendarMirrorModal.intro')}
-          </p>
+          <p>{t('notifications.calendarMirrorModal.intro')}</p>
 
           <div className={styles.infoSection}>
             <h3>{t('notifications.calendarMirrorModal.reliabilityTitle')}</h3>
@@ -293,67 +289,9 @@ export function NotificationSettings({ searchControl }: { searchControl?: JSX.El
       </Modal>
 
       <div className={styles.group}>
-        <div className={styles.groupLabel}>{t('notifications.tasks')}</div>
-        <div
-          className={styles.row}
-          data-component="setting-row"
-          data-setting="task-due-date-reminders"
-          data-value={String(taskDueDateReminders)}
-        >
-          <div className={styles.rowInfo}>
-            <div className={styles.rowLabel}>{t('notifications.taskDueDateReminders.label')}</div>
-            <div className={styles.rowDesc}>{t('notifications.taskDueDateReminders.desc')}</div>
-          </div>
-          <div className={styles.rowControl}>
-            <label
-              className={styles.toggle}
-              data-component="toggle"
-              data-setting="task-due-date-reminders"
-            >
-              <input
-                type="checkbox"
-                checked={taskDueDateReminders}
-                aria-label={t('notifications.taskDueDateReminders.ariaLabel')}
-                onChange={() => updateSettings({ taskDueDateReminders: !taskDueDateReminders })}
-              />
-              <span className={styles.pill} />
-              <span className={styles.knob} />
-            </label>
-          </div>
-        </div>
-        <div
-          className={styles.row}
-          data-component="setting-row"
-          data-setting="overdue-task-badge"
-          data-value={String(overdueTaskBadge)}
-        >
-          <div className={styles.rowInfo}>
-            <div className={styles.rowLabel}>{t('notifications.overdueTaskBadge.label')}</div>
-            <div className={styles.rowDesc}>{t('notifications.overdueTaskBadge.desc')}</div>
-          </div>
-          <div className={styles.rowControl}>
-            <label
-              className={styles.toggle}
-              data-component="toggle"
-              data-setting="overdue-task-badge"
-            >
-              <input
-                type="checkbox"
-                checked={overdueTaskBadge}
-                aria-label={t('notifications.overdueTaskBadge.ariaLabel')}
-                onChange={() => updateSettings({ overdueTaskBadge: !overdueTaskBadge })}
-              />
-              <span className={styles.pill} />
-              <span className={styles.knob} />
-            </label>
-          </div>
-        </div>
-      </div>
-
-      <div className={styles.group}>
         <div className={styles.row} data-component="setting-row" data-setting="test-notification">
           <div className={styles.rowInfo}>
-          <div className={styles.rowLabel}>{t('notifications.test.label')}</div>
+            <div className={styles.rowLabel}>{t('notifications.test.label')}</div>
             <div className={styles.rowDesc}>
               {permissionStatus === 'default'
                 ? t('notifications.test.descDefault')
@@ -371,7 +309,9 @@ export function NotificationSettings({ searchControl }: { searchControl?: JSX.El
               data-action="test-notification"
               type="button"
             >
-              {permissionStatus === 'default' ? t('notifications.test.enableAndTest') : t('notifications.test.sendTest')}
+              {permissionStatus === 'default'
+                ? t('notifications.test.enableAndTest')
+                : t('notifications.test.sendTest')}
             </button>
           </div>
         </div>

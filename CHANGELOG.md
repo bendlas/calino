@@ -4,6 +4,195 @@ All notable changes to Calino will be documented in this file.
 
 ## [Unreleased]
 
+## [0.39.1] - 2026-10-07
+
+**A heads-up: I'm going on vacation for two weeks, so don't expect any updates or replies to issues until I'm back.**
+
+This is a small follow-up to 0.39.0. It lets you export or delete the events of a single calendar from Data settings, and brings the dependencies up to date.
+
+### Added
+
+- **Per-calendar export and delete** ([#204](https://github.com/Ivan-Malinovski/calino/issues/204)). Under Data settings you can now export all calendars (the default) or just one as `.ics`, and scope **Delete Local Events** to a single calendar. A new **Delete All Events From a Calendar** row removes every item in a chosen calendar, on the CalDAV server too, behind a type-the-name confirmation. Local copies are only dropped once the server confirms, so a failure stays visible and can be retried.
+
+### Changed
+
+- **Clearer data actions.** **Delete Local Events** now says plainly that server events are untouched and may reappear on the next sync, and **Reset Calino** says it only clears this device and never touches servers (events that exist only locally are lost). Action button labels stay on one line, and picker rows stack so long descriptions are no longer squashed.
+- **WebMCP setting renamed** to "Browser AI Access (WebMCP, experimental)".
+- **Dependencies updated**, including React 19.3, Vite 8.3, framer-motion 14, and the Capacitor 8.5 core and plugins used by the Android app. No change in behavior is intended.
+
+## [0.39.0] - 2026-10-06
+
+**A heads-up: I'm going on vacation for two weeks, so don't expect any updates or replies to issues until I'm back.**
+
+This release adds JMAP support for calendars and contacts. **JMAP testing has been very limited**, so expect rough edges. If you use a JMAP server, I'd love to hear how it goes, good or bad, in the [issues](https://github.com/Ivan-Malinovski/calino/issues).
+
+It also brings support for the iCalendar CONCEPT property, translated notifications and interface text, and a redesigned contact editor.
+
+### Added
+
+- **JMAP support** ([#15](https://github.com/Ivan-Malinovski/calino/issues/15)). Calino now syncs calendars and contacts over JMAP (JSCalendar and JSContact) as well as CalDAV and CardDAV. There is nothing to choose: when you connect, Calino detects which protocol the server speaks, and servers that offer both use JMAP. Everything else works as it does for CalDAV, including recurring events, attendees, reminders, free/busy and live updates. Tick **Use CalDAV** under Connection settings if you prefer CalDAV on a server that offers both. See `docs/JMAP.md`.
+- **Diagnose understands JMAP.** For a JMAP account it checks the session, the API endpoint, calendars, contacts and live updates, and can run a write test. Checks now have plainer names, a page that blocks the connection (an `http://` server from an https page, or the Content Security Policy) is reported first, and the summary says whether the problem is the page, the credentials or the server. A rejected password skips the remaining checks instead of listing them all as failures.
+- **CONCEPT property** ([#174](https://github.com/Ivan-Malinovski/calino/issues/174)). Events, tasks and journals now keep the iCalendar `CONCEPT` property (RFC 9253), so these URIs survive a save instead of being dropped or escaped. Thanks to [@al-franco-data](https://github.com/al-franco-data), whose work this is based on.
+
+### Changed
+
+- **Redesigned contact editor.** The new and edit contact form has a pinned header and footer, a scrolling body, and spaced sections, matching the other modals. Fields no longer run together, the note and XML boxes are no longer squashed, and it works on phone-sized screens.
+- **More of the interface is translated.** Notifications, labels, buttons, placeholders, dialogs and error messages now follow your language (Danish, German, Spanish, French, Italian and Dutch), and some notifications that showed raw keys now read properly.
+- **CORS proxy.** The proxy now exposes `WWW-Authenticate` and `Retry-After`, allows `X-Follow-Redirects`, and no longer cuts live-update streams short, so JMAP works through it. If you run your own Cloudflare Worker from `docs/CORS_PROXY.md`, update it to the current version.
+
+## [0.38.0] - 2026-10-05
+
+This release brings "Sometime this week" tasks to month view, adds Markdown
+in descriptions and notes, and connects task reminders and the overdue badge.
+It also includes the native Android app at 0.11.0, with week tasks, Danish and
+German, and smoother navigation between views.
+
+### Added
+
+- **"Sometime this week" tasks in month view.** Each week has a count badge
+  in the gutter. Click it to see the week's tasks, tick one off, or add a new
+  one without choosing a day. Drag a task from the list onto a day to schedule
+  it, or drag a day task back into the gutter to give it the whole week.
+  The badge is available even when week numbers are hidden.
+- **Markdown in event descriptions and task notes**
+  ([#197](https://github.com/Ivan-Malinovski/calino/pull/197)). Formatting,
+  lists and links now render in previews and task tooltips. Self-hosted
+  installations can also configure links into other apps, such as Obsidian,
+  to open from descriptions and notes
+  ([#198](https://github.com/Ivan-Malinovski/calino/pull/198)). Thanks to
+  [@nrydanov](https://github.com/nrydanov) for both changes.
+- **Calendar names in task lists**
+  ([#195](https://github.com/Ivan-Malinovski/calino/pull/195)). The Tasks view
+  and sidebar can show which calendar each task belongs to, with options on
+  the Tasks page in Settings. Thanks to
+  [@karamanliev](https://github.com/karamanliev).
+- **Experimental browser AI access.** Settings → Data has an opt-in WebMCP
+  integration for compatible browser agents. An agent can search events, open
+  an event, or prepare a draft for you to review and save. Access is off by
+  default and can be turned off again in Settings.
+
+### Changed
+
+- **Task settings live in one place.** "Hide Completed Tasks", "Task Due Date
+  Reminders" and "Overdue Task Badge" moved to the Tasks page in Settings.
+
+### Fixed
+
+- **"Task Due Date Reminders" and "Overdue Task Badge" now do something.** Both
+  switches have been in Settings for a while without being connected to
+  anything. With reminders on, a task notifies when it falls due: at its due
+  time, or at 9:00 for a task that only has a date. With the badge on, the app
+  icon shows how many open tasks are overdue, using the browser's app badge on
+  the web and a quiet standing notification on Android.
+- **Contacts now sync from CardDAV servers that use different XML
+  prefixes, such as Radicale** ([#173](https://github.com/Ivan-Malinovski/calino/issues/173)).
+  Responses were matched on hardcoded `D:`/`C:` prefixes, so a server that
+  binds `DAV:` to the default namespace (or carddav to `CR:`) produced no
+  contacts and no sync token, and every sync re-fetched the whole address
+  book. Responses are now parsed by namespace. The same fix makes Radicale
+  address books report as writable and read their vCard versions correctly.
+  Incremental sync also never worked on any server, because reading a
+  nonexistent `DAV:sync-token` response header threw and was reported as an
+  invalidated token. It now works, so a sync downloads only the contacts that
+  changed, applies deletions, and fetches large address books in batches.
+  Calino also no longer downloads a whole address book on every page load just
+  to check whether contacts exist.
+  Thanks to [@SNNU-Lisiyu](https://github.com/SNNU-Lisiyu), whose fix this is
+  based on.
+- **Recurring all-day events whose source year is before 1000 no longer break
+  the calendar** ([#175](https://github.com/Ivan-Malinovski/calino/issues/175)).
+  An all-day date such as `00010827` (a historic birthday, say) was read back
+  as `1-08-27`, which the calendar layout couldn't parse. Years are now
+  zero-padded to four digits. Thanks to
+  [@tionis](https://github.com/tionis), whose fix this is based on.
+- **Monthly recurrence can use the actual last day of the month**
+  ([#193](https://github.com/Ivan-Malinovski/calino/pull/193)). Choosing the
+  last day now follows February and 30-day months too, instead of always
+  repeating on the original date. Thanks to
+  [@karamanliev](https://github.com/karamanliev).
+- Today's date stays highlighted when you hover it in month view
+  ([#196](https://github.com/Ivan-Malinovski/calino/pull/196)). Thanks to
+  [@nrydanov](https://github.com/nrydanov).
+- Event card times shrink to fit before being cut off on narrow cards.
+- Delete and undo notifications now name the kind of item, so deleting a
+  task or journal no longer calls it an event.
+
+### Native Android app
+
+This release also attaches `calino-android-0.11.0.apk`, the latest phone build
+of the native Android app from
+[calino-android](https://github.com/Ivan-Malinovski/calino-android/releases/tag/v0.11.0).
+I'd like you to try it if you haven't yet. If something doesn't work as you
+expect, please let me know over at the
+[calino-android issues](https://github.com/Ivan-Malinovski/calino-android/issues)
+page, and if you like it, a star on the repo would be much appreciated.
+
+Since `calino-android-0.9.0.apk` attached to 0.35.0, the native app has gained:
+
+- **"Sometime this week" tasks** in the 1-, 3- and 7-day Range views, with a
+  badge and popover, quick-add, and dragging between the week and a day. You
+  can also reopen a completed task from the Tasks page.
+- **Danish and German** in the phone and watch apps, including editors,
+  reminders and widgets. Choose the app's language in Android settings.
+- **Multi-day timed events in the Range header**, spanning the days they
+  cover while keeping their original times.
+- **Year and Agenda transitions that follow your finger**, a shared day
+  sidebar for Month and Year in wide landscape layouts, and a setting for
+  edge swipes.
+- A calendar picker for new tasks, a simpler Range header, and fixes for
+  quick day and week swipes, week-task popup dimming and multi-day layout.
+
+It needs Android 12 or newer. The other APK, `calino-v0.38.0.apk`, is the
+regular Calino app.
+
+## [0.36.0] - 2026-09-30
+
+This release adds a "Sometime this week" bar to the week view for tasks that
+aren't tied to a particular day. It's a new idea and I'd really like your
+feedback on it: does it fit how you plan your week, and what feels off?
+
+### Added
+
+- **A "Sometime this week" bar in week view.** Tasks whose start-to-due range
+  spans three or more days now show as checkbox pills in a bar below the week
+  grid, instead of sitting under their due day. Untimed single-day tasks move
+  from the bottom footer into the day headers alongside all-day events.
+- **Start date and quick-add for week tasks.** The task form has an optional
+  start date and a "This week" preset, with a hint showing the resulting
+  range. The "+" in the bar reveals an inline field: Enter adds a task for the
+  whole week, and "…" opens the full form already set to the week. Right-click
+  a pill for the task menu.
+- **Drag tasks between the week grid and the "Sometime this week" bar.**
+  Drag a pill from the bar onto a day header to make it an all-day task on
+  that day, or onto a time slot to give it that day and time, snapped to the
+  quarter hour. Drag a task from the grid onto the bar to turn it into a
+  task for the whole week.
+
+### Changed
+
+- Task pills in month view, day headers and the week bar share one compact
+  geometry, the height of an event, with round tickboxes.
+- The README now points to the standalone native Android app, and the auth
+  gateway setup guide has moved out of the README.
+
+### Fixed
+
+- **Giving an all-day event a time in the quick preview makes it a timed
+  event** ([#190](https://github.com/Ivan-Malinovski/calino/issues/190)).
+  Setting a start or end time from the preview popup used to leave the event
+  flagged all-day, so it kept showing as "All day" until you unticked the box
+  in the full editor. It now becomes a timed event with the default duration,
+  and "this occurrence" or "this and future" edits of a recurring all-day
+  event respect the change.
+- Pressing Enter in a time field of the quick preview now saves the time you
+  typed instead of the previous one.
+
+## [0.35.0] - 2026-09-30
+
+This release adds Spanish, French, Italian and Dutch, a search bar in
+Settings, and a round of month view, reminder and CalDAV fixes. It also
+attaches the native Android app, which I'd like you to try.
+
 ### Added
 
 - **A lapsed browser session re-authenticates instead of silently failing.**
@@ -15,6 +204,53 @@ All notable changes to Calino will be documented in this file.
 - **Spanish, French, Italian, and Dutch interface translations.** These
   languages are available in the language setting and use localized date
   names; Android shortcuts are localized as well.
+- **Settings search.** A search field at the top of Settings finds any
+  setting by name, and each section heading now matches the page you land on.
+
+### Changed
+
+- Reminder notifications now show which day the event is on.
+
+### Fixed
+
+- **The configured default view is respected**
+  ([#183](https://github.com/Ivan-Malinovski/calino/pull/183)). Opening the
+  app root or tapping the header's home button now goes to the view you chose
+  as your default.
+- Events that end at midnight stay on their start day instead of spilling
+  onto the next one.
+- In month view, the title of an event spanning several days is no longer
+  hidden under the next day's cell, and a very long title is cut off with an
+  ellipsis at the end of its week's run instead of running over other events.
+- Patching a CalDAV event no longer sends a conflicting duration alongside its
+  end time.
+
+### Native Android app
+
+This release also attaches `calino-android-0.9.0.apk`, the current build of the
+native Android app from
+[calino-android](https://github.com/Ivan-Malinovski/calino-android). I feel
+the native app is now in a pretty good state, and it is definitely worth
+trying over the old Android app. If you run into any issues, please let me
+know over at the [calino-android](https://github.com/Ivan-Malinovski/calino-android/issues)
+repo, and if you like it, a star on the repo would be much appreciated.
+
+Since `calino-android-0.5.0.apk` in the last release, the native app has gained:
+
+- **Year view**, background sync, and a menu pill for moving between views,
+  with a setting to choose which views it offers.
+- **Invitations and RSVP** (Accept, Maybe, Decline) on CalDAV servers that
+  support scheduling, and sync problems that surface on their own with a
+  redesigned queued-changes card.
+- **Event attachments and time zones**, a redesigned search sheet,
+  Agenda as the opening view, Settings search, device-only reminders for
+  read-only events, and Calino's own date and time pickers with slide-to-edit
+  times.
+- A New task launcher shortcut, task details that match event details, and
+  many CalDAV, task and month view fixes.
+
+It needs Android 12 or newer. The other APK, `calino-v0.35.0.apk`, is the
+regular Calino app.
 
 ## [0.34.0] - 2026-09-23
 

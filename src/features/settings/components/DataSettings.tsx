@@ -1,13 +1,15 @@
 import type { JSX } from 'react'
+import { Capacitor } from '@capacitor/core'
 import { useTranslation } from 'react-i18next'
 import { SettingsPageHeading } from './SettingsPageHeading'
+import { WebMCPSettings } from './WebMCPSettings'
 import { useState, useRef } from 'react'
 import { useCalendarStore } from '@/store/calendarStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import { useContactStore } from '@/store/contactStore'
 import { useCalDAV } from '@/features/caldav/hooks/useCalDAV'
 import { useCardDAV } from '@/features/carddav/hooks/useCardDAV'
-import { exportAllEventsIcs } from '@/lib/icsExport'
+import { exportAllEventsIcs, exportCalendarIcs } from '@/lib/icsExport'
 import { IcsImportModal } from '@/features/calendar/components/IcsImportModal'
 import {
   parseVCardFile,
@@ -16,6 +18,7 @@ import {
   readFileAsText,
 } from '@/features/carddav/lib/vCardFileUtils'
 import { showToast } from '@/lib/toast'
+import { PurgeCalendarDialog } from './PurgeCalendarDialog'
 import { MergeDuplicatesModal } from '@/features/carddav/components/MergeDuplicatesModal'
 import { ImportExportModal } from '@/features/carddav/components/ImportExportModal'
 import { formatBrokenEventDate as formatDate } from '../lib/format'
@@ -36,6 +39,16 @@ export function DataSettings({ searchControl }: { searchControl?: JSX.Element })
   const [pendingIcs, setPendingIcs] = useState<{ text: string; fileName: string } | null>(null)
 
   const events = useCalendarStore((state) => state.events)
+  const calendars = useCalendarStore((state) => state.calendars)
+  // '' means every calendar; otherwise a calendar id.
+  const [exportCalendarId, setExportCalendarId] = useState('')
+  const [deleteCalendarId, setDeleteCalendarId] = useState('')
+  const [purgeCalendarId, setPurgeCalendarId] = useState('')
+  const [isPurgeOpen, setIsPurgeOpen] = useState(false)
+  const [isPurging, setIsPurging] = useState(false)
+  // Webcal subscriptions are read-only mirrors; there is nothing to delete.
+  const purgeableCalendars = calendars.filter((c) => !c.readOnly)
+  const purgeCalendar = purgeableCalendars.find((c) => c.id === purgeCalendarId)
   const brokenEvents = useCalendarStore((state) => state.brokenEvents)
   const duplicateUidIssues = useCalendarStore((state) => state.duplicateUidIssues)
   const clearDuplicateUidIssues = useCalendarStore((state) => state.clearDuplicateUidIssues)
@@ -54,9 +67,87 @@ export function DataSettings({ searchControl }: { searchControl?: JSX.Element })
   const handleExportICS = async (): Promise<void> => {
     setIsExporting(true)
     try {
-      exportAllEventsIcs(events)
+      const calendar = calendars.find((c) => c.id === exportCalendarId)
+      if (calendar) exportCalendarIcs(calendar, events)
+      else exportAllEventsIcs(events)
     } finally {
       setIsExporting(false)
+    }
+  }
+
+  const handleDeleteEvents = (): void => {
+    const calendar = calendars.find((c) => c.id === deleteCalendarId)
+    const message = calendar
+      ? t('data.deleteAllEvents.confirmCalendar', { name: calendar.name })
+      : t('data.deleteAllEvents.confirm')
+    if (!confirm(message)) return
+    const { events: allEvents, deleteEvent } = useCalendarStore.getState()
+    allEvents
+      .filter((e) => !calendar || e.calendarId === calendar.id)
+      .forEach((e) => deleteEvent(e.id))
+  }
+
+  /**
+   * Delete every event in the chosen calendar, on the server too when it is a
+   * CalDAV calendar. Recurrence overrides share a resource with their master,
+   * so the server is asked once per resource, not once per event. A local copy
+   * is only dropped after the server confirmed, so a failure leaves the event
+   * visible (and retryable) instead of silently diverging.
+   */
+  const handlePurgeCalendar = async (): Promise<void> => {
+    if (!purgeCalendar) return
+    setIsPurging(true)
+    try {
+      const { events: allEvents, deleteEvent } = useCalendarStore.getState()
+      const own = allEvents.filter((e) => e.calendarId === purgeCalendar.id)
+      let failed = 0
+
+      if (!purgeCalendar.accountId) {
+        own.forEach((e) => deleteEvent(e.id))
+      } else {
+        const byHref = new Map<string, typeof own>()
+        const unsynced: typeof own = []
+        for (const e of own) {
+          if (!e.resourceHref) unsynced.push(e)
+          else byHref.set(e.resourceHref, [...(byHref.get(e.resourceHref) ?? []), e])
+        }
+
+        const BATCH = 5
+        const resources = [...byHref.entries()]
+        for (let i = 0; i < resources.length; i += BATCH) {
+          await Promise.all(
+            resources.slice(i, i + BATCH).map(async ([href, group]) => {
+              try {
+                await caldav.deleteEventByHref(purgeCalendar.id, href)
+                group.forEach((e) => deleteEvent(e.id))
+              } catch (err) {
+                console.warn('[DataSettings] Purge failed for', href, err)
+                failed += group.length
+              }
+            })
+          )
+        }
+        // Never reached the server, so deleting by id also clears any queued
+        // create for them.
+        for (const e of unsynced) {
+          try {
+            await caldav.deleteEvent(purgeCalendar.id, e.id)
+          } catch {
+            failed += 1
+          }
+        }
+      }
+
+      const deleted = own.length - failed
+      if (failed > 0) {
+        showToast(t('data.purgeCalendar.partial', { deleted, failed, name: purgeCalendar.name }))
+      } else {
+        showToast(t('data.purgeCalendar.done', { count: deleted, name: purgeCalendar.name }))
+      }
+      setIsPurgeOpen(false)
+      setPurgeCalendarId('')
+    } finally {
+      setIsPurging(false)
     }
   }
 
@@ -79,7 +170,10 @@ export function DataSettings({ searchControl }: { searchControl?: JSX.Element })
           for (const event of data.events) {
             useCalendarStore.getState().addEvent(event)
           }
-          setImportStatus({ type: 'success', message: t('data.importedEvents', { count: data.events.length }) })
+          setImportStatus({
+            type: 'success',
+            message: t('data.importedEvents', { count: data.events.length }),
+          })
         } else {
           setImportStatus({ type: 'error', message: t('data.noEventsInJson') })
         }
@@ -185,21 +279,38 @@ export function DataSettings({ searchControl }: { searchControl?: JSX.Element })
 
       <div className={styles.group}>
         <div className={styles.groupLabel}>{t('data.importExport')}</div>
-        <div className={styles.actionRow}>
+        <div className={`${styles.actionRow} ${styles.actionRowStacked}`}>
           <div className={styles.rowInfo}>
             <div className={styles.rowLabel}>{t('data.exportCalendar.label')}</div>
             <div className={styles.rowDesc}>{t('data.exportCalendar.desc')}</div>
           </div>
-          <button
-            className={styles.actionBtn}
-            onClick={handleExportICS}
-            disabled={isExporting}
-            data-component="action-button"
-            data-action="export-ics"
-            type="button"
-          >
-            {isExporting ? t('data.exportCalendar.exporting') : t('data.exportCalendar.export')}
-          </button>
+          <div className={`${styles.rowControl} ${styles.rowControlGroup}`}>
+            <select
+              className={styles.select}
+              value={exportCalendarId}
+              onChange={(e) => setExportCalendarId(e.target.value)}
+              aria-label={t('data.calendarPickerLabel')}
+              data-component="calendar-picker"
+              data-action="export-calendar-select"
+            >
+              <option value="">{t('data.allCalendars')}</option>
+              {calendars.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <button
+              className={styles.actionBtn}
+              onClick={handleExportICS}
+              disabled={isExporting}
+              data-component="action-button"
+              data-action="export-ics"
+              type="button"
+            >
+              {isExporting ? t('data.exportCalendar.exporting') : t('data.exportCalendar.export')}
+            </button>
+          </div>
         </div>
         <div className={styles.actionRow}>
           <div className={styles.rowInfo}>
@@ -234,6 +345,18 @@ export function DataSettings({ searchControl }: { searchControl?: JSX.Element })
           data-testid="import-calendar-input"
         />
       </div>
+
+      {isPurgeOpen && purgeCalendar && (
+        <PurgeCalendarDialog
+          isOpen
+          calendarName={purgeCalendar?.name ?? ''}
+          eventCount={events.filter((e) => e.calendarId === purgeCalendarId).length}
+          isRemote={Boolean(purgeCalendar?.accountId)}
+          isDeleting={isPurging}
+          onClose={() => setIsPurgeOpen(false)}
+          onConfirm={() => void handlePurgeCalendar()}
+        />
+      )}
 
       {pendingIcs !== null && (
         <IcsImportModal
@@ -309,12 +432,16 @@ export function DataSettings({ searchControl }: { searchControl?: JSX.Element })
                 >
                   <div className={styles.brokenInfo}>
                     <div className={styles.brokenTitle}>
-                      {broken.event.title || 'Untitled Event'}
+                      {broken.event.title || t('ui.data.untitledEvent')}
                     </div>
                     <div className={styles.brokenDates}>
-                      <span>Start: {formatDate(broken.event.start, timeFormat)}</span>
+                      <span>
+                        {t('ui.data.start', { date: formatDate(broken.event.start, timeFormat) })}
+                      </span>
                       <span className={styles.brokenArrow}>→</span>
-                      <span>End: {formatDate(broken.event.end, timeFormat)}</span>
+                      <span>
+                        {t('ui.data.end', { date: formatDate(broken.event.end, timeFormat) })}
+                      </span>
                     </div>
                     <div className={styles.brokenReason}>{broken.reason}</div>
                   </div>
@@ -326,7 +453,7 @@ export function DataSettings({ searchControl }: { searchControl?: JSX.Element })
                       data-action="fix-broken-event"
                       type="button"
                     >
-                      Fix
+                      {t('ui.data.fix')}
                     </button>
                     <button
                       className={`${styles.actionBtn} ${styles.actionBtnDanger}`}
@@ -335,7 +462,7 @@ export function DataSettings({ searchControl }: { searchControl?: JSX.Element })
                       data-action="delete-broken-event"
                       type="button"
                     >
-                      Delete
+                      {t('ui.data.delete')}
                     </button>
                   </div>
                 </div>
@@ -351,7 +478,7 @@ export function DataSettings({ searchControl }: { searchControl?: JSX.Element })
                   data-action="fix-all-broken"
                   type="button"
                 >
-                  Fix All ({brokenEvents.length})
+                  {t('ui.data.fixAll', { count: brokenEvents.length })}
                 </button>
                 <button
                   className={`${styles.actionBtn} ${styles.actionBtnDanger}`}
@@ -360,7 +487,7 @@ export function DataSettings({ searchControl }: { searchControl?: JSX.Element })
                   data-action="delete-all-broken"
                   type="button"
                 >
-                  Delete All
+                  {t('ui.data.deleteAll')}
                 </button>
               </div>
             )}
@@ -370,10 +497,7 @@ export function DataSettings({ searchControl }: { searchControl?: JSX.Element })
         {duplicateUidIssues.length > 0 && (
           <div data-component="duplicate-uid-issues">
             <p className={styles.rowDesc} style={{ padding: '16px 20px 0' }}>
-              These events share the same unique ID (UID) on your server but are stored as separate
-              items. Calino can only show one of each set — the others are hidden to keep your
-              calendar stable. This usually comes from a bulk copy made in another app. To fix it,
-              give each event a unique UID on your server, then sync again.
+              {t('ui.data.duplicateIntro')}
             </p>
 
             <div className={styles.brokenList}>
@@ -385,7 +509,9 @@ export function DataSettings({ searchControl }: { searchControl?: JSX.Element })
                   data-uid={issue.uid}
                 >
                   <div className={styles.brokenInfo}>
-                    <div className={styles.brokenTitle}>Duplicate UID: {issue.uid}</div>
+                    <div className={styles.brokenTitle}>
+                      {t('ui.data.duplicateUid', { uid: issue.uid })}
+                    </div>
                     {issue.resources.map((res) => (
                       <div
                         key={res.href}
@@ -393,11 +519,11 @@ export function DataSettings({ searchControl }: { searchControl?: JSX.Element })
                         data-component="duplicate-uid-resource"
                         data-href={res.href}
                       >
-                        <span>{res.title || 'Untitled Event'}</span>
+                        <span>{res.title || t('ui.data.untitledEvent')}</span>
                         <span className={styles.brokenArrow}>·</span>
                         <span>{formatDate(res.start, timeFormat)}</span>
                         <span className={styles.brokenArrow}>·</span>
-                        <span>{res.kept ? 'Kept' : 'Hidden'}</span>
+                        <span>{res.kept ? t('ui.data.kept') : t('ui.data.hidden')}</span>
                         <button
                           className={styles.duplicateResourceDeleteBtn}
                           onClick={() => void handleDeleteDuplicateResource(issue, res.href)}
@@ -406,7 +532,7 @@ export function DataSettings({ searchControl }: { searchControl?: JSX.Element })
                           data-action="delete-duplicate-uid-resource"
                           type="button"
                         >
-                          {deletingHref === res.href ? 'Deleting…' : 'Delete'}
+                          {deletingHref === res.href ? t('ui.data.deleting') : t('ui.data.delete')}
                         </button>
                       </div>
                     ))}
@@ -419,7 +545,7 @@ export function DataSettings({ searchControl }: { searchControl?: JSX.Element })
                       data-action="dismiss-duplicate-uid"
                       type="button"
                     >
-                      Dismiss
+                      {t('ui.data.dismiss')}
                     </button>
                   </div>
                 </div>
@@ -429,27 +555,79 @@ export function DataSettings({ searchControl }: { searchControl?: JSX.Element })
         )}
       </div>
 
+      {!Capacitor.isNativePlatform() && <WebMCPSettings />}
+
       <div className={`${styles.group} ${styles.dangerZone}`}>
-        <div className={`${styles.groupLabel} ${styles.dangerZoneLabel}`}>{t('data.dangerZone')}</div>
-        <div className={styles.actionRow}>
+        <div className={`${styles.groupLabel} ${styles.dangerZoneLabel}`}>
+          {t('data.dangerZone')}
+        </div>
+        <div className={`${styles.actionRow} ${styles.actionRowStacked}`}>
           <div className={styles.rowInfo}>
             <div className={styles.rowLabel}>{t('data.deleteAllEvents.label')}</div>
             <div className={styles.rowDesc}>{t('data.deleteAllEvents.desc')}</div>
           </div>
-          <button
-            className={`${styles.actionBtn} ${styles.actionBtnDanger}`}
-            onClick={() => {
-              if (confirm(t('data.deleteAllEvents.confirm'))) {
-                const allEvents = useCalendarStore.getState().events
-                allEvents.forEach((e) => useCalendarStore.getState().deleteEvent(e.id))
-              }
-            }}
-            data-component="action-button"
-            data-action="delete-all-events"
-            type="button"
-          >
-            {t('data.deleteAllEvents.action')}
-          </button>
+          <div className={`${styles.rowControl} ${styles.rowControlGroup}`}>
+            <select
+              className={styles.select}
+              value={deleteCalendarId}
+              onChange={(e) => setDeleteCalendarId(e.target.value)}
+              aria-label={t('data.calendarPickerLabel')}
+              data-component="calendar-picker"
+              data-action="delete-events-calendar-select"
+            >
+              <option value="">{t('data.allCalendars')}</option>
+              {calendars.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <button
+              className={`${styles.actionBtn} ${styles.actionBtnDanger}`}
+              onClick={handleDeleteEvents}
+              data-component="action-button"
+              data-action="delete-all-events"
+              type="button"
+            >
+              {t('data.deleteAllEvents.action')}
+            </button>
+          </div>
+        </div>
+        <div
+          className={`${styles.actionRow} ${styles.actionRowStacked}`}
+          data-component="purge-calendar-row"
+        >
+          <div className={styles.rowInfo}>
+            <div className={styles.rowLabel}>{t('data.purgeCalendar.label')}</div>
+            <div className={styles.rowDesc}>{t('data.purgeCalendar.desc')}</div>
+          </div>
+          <div className={`${styles.rowControl} ${styles.rowControlGroup}`}>
+            <select
+              className={styles.select}
+              value={purgeCalendarId}
+              onChange={(e) => setPurgeCalendarId(e.target.value)}
+              aria-label={t('data.calendarPickerLabel')}
+              data-component="calendar-picker"
+              data-action="purge-calendar-select"
+            >
+              <option value="">{t('data.purgeCalendar.placeholder')}</option>
+              {purgeableCalendars.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <button
+              className={`${styles.actionBtn} ${styles.actionBtnDangerSolid}`}
+              onClick={() => setIsPurgeOpen(true)}
+              disabled={!purgeCalendar}
+              data-component="action-button"
+              data-action="purge-calendar"
+              type="button"
+            >
+              {t('data.purgeCalendar.action')}
+            </button>
+          </div>
         </div>
         <div className={styles.actionRow}>
           <div className={styles.rowInfo}>

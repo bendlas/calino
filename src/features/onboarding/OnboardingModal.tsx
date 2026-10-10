@@ -1,5 +1,6 @@
 import type { JSX } from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
 import { Capacitor } from '@capacitor/core'
 import { useAnimatedClose } from '@/hooks/useAnimatedClose'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
@@ -13,6 +14,7 @@ import { requestNativeReminderPermission } from '@/lib/nativeReminders'
 import { config } from '@/config'
 import { createUuid } from '@/lib/uuid'
 import { withBase } from '@/lib/urls'
+import i18n from '@/lib/i18n'
 import styles from './OnboardingModal.module.css'
 
 const isNative = Capacitor.isNativePlatform()
@@ -22,6 +24,7 @@ interface OnboardingModalProps {
 }
 
 export function OnboardingModal({ onAddCalendar }: OnboardingModalProps): JSX.Element | null {
+  const { t } = useTranslation('common')
   const [isLoadingDemo, setIsLoadingDemo] = useState(false)
   const [demoError, setDemoError] = useState('')
   const [showHow, setShowHow] = useState(false)
@@ -97,7 +100,7 @@ export function OnboardingModal({ onAddCalendar }: OnboardingModalProps): JSX.El
     try {
       const response = await fetch(withBase('sample-events.ics'))
       if (!response.ok) {
-        throw new Error('Failed to load demo data')
+        throw new Error(i18n.t('common:ui.onboarding.demoFailed'))
       }
 
       const icsData = await response.text()
@@ -176,7 +179,9 @@ export function OnboardingModal({ onAddCalendar }: OnboardingModalProps): JSX.El
 
       completeOnboarding()
     } catch (error) {
-      setDemoError(error instanceof Error ? error.message : 'Failed to load demo data')
+      setDemoError(
+        error instanceof Error ? error.message : i18n.t('common:ui.onboarding.demoFailed')
+      )
     } finally {
       setIsLoadingDemo(false)
     }
@@ -201,13 +206,13 @@ export function OnboardingModal({ onAddCalendar }: OnboardingModalProps): JSX.El
         aria-labelledby="onboarding-title"
       >
         <h2 className={styles.title} id="onboarding-title">
-          Start with your calendar
+          {t('ui.onboarding.title')}
         </h2>
 
         <p className={styles.description}>
-          Connect iCloud, Nextcloud, Fastmail or any CalDAV server.
+          {t('ui.onboarding.connectLine')}
           <br />
-          Your data stays in your browser.{' '}
+          {t('ui.onboarding.dataStays')}{' '}
           <button
             type="button"
             className={styles.howButton}
@@ -216,14 +221,13 @@ export function OnboardingModal({ onAddCalendar }: OnboardingModalProps): JSX.El
             aria-controls="onboarding-how"
             data-action="onboarding-how"
           >
-            How?
+            {t('ui.onboarding.how')}
           </button>
         </p>
 
         {showHow && (
           <p className={styles.howText} id="onboarding-how">
-            Calino has no backend of its own. It talks directly to your CalDAV server and stores a
-            copy locally. You can back up or move your data with export/import in Settings.
+            {t('ui.onboarding.howText')}
           </p>
         )}
 
@@ -231,7 +235,7 @@ export function OnboardingModal({ onAddCalendar }: OnboardingModalProps): JSX.El
 
         <div className={styles.actions}>
           <button className={styles.addButton} onClick={handleAddCalendar}>
-            Connect CalDAV account
+            {t('ui.onboarding.connectAccount')}
           </button>
           {!__CALINO_SELF_HOSTED__ && (
             <button
@@ -261,29 +265,31 @@ export function OnboardingModal({ onAddCalendar }: OnboardingModalProps): JSX.El
                   />
                 </svg>
               )}
-              {isLoadingDemo ? 'Loading…' : 'Explore Calino with sample data'}
+              {isLoadingDemo ? t('ui.onboarding.loading') : t('ui.onboarding.explore')}
             </button>
           )}
           <button className={styles.skipButton} onClick={handleDismiss}>
-            Skip for now
+            {t('ui.onboarding.skip')}
           </button>
         </div>
 
         <p className={styles.footnote}>
           {isNative ? (
-            'Calino can remind you before events start. Continuing will ask for notification permission.'
+            t('ui.onboarding.nativeFootnote')
           ) : (
-            <>
-              Also on{' '}
-              <a
-                href={`https://github.com/${config.githubRepo}/releases`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Android
-              </a>
-              , with camera import and reminders.
-            </>
+            <Trans
+              t={t}
+              i18nKey="ui.onboarding.alsoOnAndroid"
+              components={{
+                apk: (
+                  <a
+                    href={`https://github.com/${config.githubRepo}/releases`}
+                    target="_blank"
+                    rel="noreferrer"
+                  />
+                ),
+              }}
+            />
           )}
         </p>
       </div>

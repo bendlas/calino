@@ -64,6 +64,10 @@
   flex-shrink: 0;
 }
 
+.headerSlim {
+  grid-template-columns: 34px repeat(7, 1fr);
+}
+
 .headerNoWeekNum {
   grid-template-columns: repeat(7, 1fr);
 }
@@ -104,6 +108,10 @@
   flex: 1;
 }
 
+.weekRowSlim {
+  grid-template-columns: 34px repeat(7, 1fr);
+}
+
 .weekRowNoWeekNum {
   grid-template-columns: repeat(7, 1fr);
 }
@@ -127,7 +135,8 @@
 /* ---- Week Number ---- */
 .weekNumber {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
   padding-top: 5px;
   font-size: 10.5px;
   font-weight: 600;
@@ -149,6 +158,47 @@
 
 .weekNumber:active {
   transform: scale(0.9);
+}
+
+/* While a task is dragged the gutters offer themselves as "this week" drop
+   targets; the one under the pointer takes the accent. */
+.weekDropReady {
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.weekDropOver {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+/* The drag preview for a task lifted out of the week popover. */
+.weekTaskGhost {
+  display: inline-block;
+  max-width: 220px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink);
+  background: var(--popover-bg, var(--panel, #fff));
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  cursor: grabbing;
+}
+
+/* Week numbers off: the column only carries the week-task badge, so it drops
+   the number's 28px line and sits flush at the top. */
+.weekNumberSlim {
+  padding-top: 4px;
+}
+
+/* An empty row's add affordance shows while the pointer is over the row. */
+.weekRow:hover [data-week-badge='empty'] {
+  opacity: 1;
 }
 
 /* ---- Day Cell ---- */
@@ -284,6 +334,14 @@
 .dayNumber:hover {
   background: var(--day-number-hover-bg, var(--hover-bg));
   color: var(--color-text-primary);
+}
+
+/* The rule above has the weight of `.today .dayNumber` and comes after it, so
+   without this one hovering today's number washes its circle out and leaves
+   dark digits on a pale disc. */
+.today .dayNumber:hover {
+  background: var(--color-accent-hover, var(--accent-strong, var(--accent)));
+  color: var(--accent-contrast, #fff);
 }
 
 .dayNumber:active {
@@ -536,7 +594,9 @@
   opacity: 0.65;
   transform: translate(-50%, -50%);
   pointer-events: none;
-  transition: opacity 0.2s, width 0.2s;
+  transition:
+    opacity 0.2s,
+    width 0.2s;
 }
 
 .splitHandleH:hover,

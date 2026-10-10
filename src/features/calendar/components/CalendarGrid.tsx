@@ -1,4 +1,4 @@
-import type { JSX } from 'react'
+import type { CSSProperties, JSX } from 'react'
 import React, { useMemo, useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react'
 import { useNavigate } from 'react-router'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -8,10 +8,13 @@ import {
   DragOverlay,
   useDroppable,
   useDndContext,
+  pointerWithin,
+  rectIntersection,
   useSensor,
   useSensors,
   MouseSensor,
   TouchSensor,
+  type CollisionDetection,
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
@@ -37,6 +40,7 @@ import {
 } from 'date-fns'
 import { pad2, toEventInstant, toZoneWallClock, formatDisplayDate } from '@/lib/datetime'
 import { useTranslation } from 'react-i18next'
+import i18n from '@/lib/i18n'
 import { useCalendarStore } from '@/store/calendarStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import { getWeekdayLabels } from './weekdayLabels'
@@ -46,6 +50,9 @@ import { useDateChangeMotion, type DateChangeMotion } from '@/hooks/useDateChang
 import { safeCalDAVUpdate } from '@/lib/caldavHelpers'
 import { EventCard } from './EventCard'
 import { DayEventsPopup } from './DayEventsPopup'
+import { WeekGutterCell, WEEK_ROW_DROP_PREFIX } from './WeekGutterCell'
+import { WeekTasksBadge } from './WeekTasksBadge'
+import { WeekTasksPopover } from './WeekTasksPopover'
 import { ContextMenu } from '@/components/common/ContextMenu'
 import { useGestures } from '@/hooks/useGestures'
 import { eventCardVariants } from '../lib/eventAnimations'
@@ -67,6 +74,7 @@ import { DayView } from './DayView'
 import type { CalendarEvent, ViewType } from '@/types'
 import { getJournalDates, getTasksForDay } from '@/store/calendarStore'
 import { hasDueTime } from '@/lib/events'
+import { isWeekScopedTask, weekScopedTasksInRange } from '@/lib/weekTasks'
 import { consumesVerticalScroll } from '@/lib/scrollChaining'
 import styles from './CalendarGrid.module.css'
 import { duplicateEventWithSync } from '@/lib/duplicateWithSync'
@@ -93,6 +101,22 @@ const gridDelta = (key: string): number | null =>
           : null
 
 const DEFAULT_MONTH_AGENDA_GRID_RATIO = 0.4
+
+// A fragment that owns its week's title lets the text overflow into the next
+// day cells. The card wrapper's transform makes it a stacking context, so the
+// card's own z-index can't lift it; raise the wrapper above later day cells.
+// Cells a fragment's title may cover: from this day to the event's last day,
+// capped at the end of the week row (the next row draws its own title).
+const fragmentSpanDays = (event: CalendarEvent, day: Date, weekDaysLeft: number): number =>
+  Math.max(1, Math.min(weekDaysLeft, differenceInCalendarDays(eventLastDay(event), day) + 1))
+
+const fragmentTitleWrapperStyle = (
+  event: CalendarEvent,
+  isWeekStart: boolean
+): CSSProperties | undefined =>
+  event.isFragment && (event.isFirstFragment || isWeekStart)
+    ? { position: 'relative', zIndex: 2 }
+    : undefined
 
 // Shared by the button and span forms of the journal indicator (see the
 // compact-mobile branch in DroppableDay).
@@ -192,6 +216,8 @@ export function CalendarGrid(): JSX.Element {
   // week (handled by useRovingGrid, which also owns the roving tab stop). The
   // cell itself keeps its own Enter/Space handler that opens the focused day.
   const [activeEvent, setActiveEvent] = useState<CalendarEvent | null>(null)
+  // True while the dragged task was lifted from a week popover rather than a cell.
+  const [draggingWeekPill, setDraggingWeekPill] = useState(false)
   const [activeLayout, setActiveLayout] = useState<{
     compact: boolean
     monthView: boolean
@@ -408,6 +434,7 @@ export function CalendarGrid(): JSX.Element {
     const draggedEvent = events.find((e) => e.id === eventId)
     draggedEventRef.current = draggedEvent || null
     setActiveEvent(draggedEvent || null)
+    setDraggingWeekPill(String(event.active.id).endsWith('::weektask'))
     markDragStart(event.activatorEvent)
     const data = event.active.data.current as
       | { compact?: boolean; monthView?: boolean; dotMode?: boolean; isMobileMonth?: boolean }
@@ -425,10 +452,66 @@ export function CalendarGrid(): JSX.Element {
     const shouldDuplicate = useDragModifierStore.getState().isDuplicateModifierHeld
     markDragEnd()
     setActiveEvent(null)
+    setDraggingWeekPill(false)
 
     if (!over) return
 
     const droppableId = String(over.id)
+    const isWeekPill = String(active.id).endsWith('::weektask')
+
+    // A task dropped on a week row's gutter becomes that week's "sometime this
+    // week" task; a week task dropped on another row moves there.
+    if (droppableId.startsWith(WEEK_ROW_DROP_PREFIX)) {
+      const weekStartKey = droppableId.slice(WEEK_ROW_DROP_PREFIX.length)
+      const weekEndKey = format(addDays(parseISO(weekStartKey), 6), 'yyyy-MM-dd')
+      const task = draggedEventRef.current
+      draggedEventRef.current = null
+      if (!task || task.type !== 'task') return
+      if (task.rruleString || task.recurrence || task.recurrenceId || task.occurrenceMasterId) {
+        return
+      }
+      const weekUpdates = {
+        start: `${weekStartKey}T00:00:00`,
+        end: `${weekEndKey}T23:59:59`,
+        dueDate: weekEndKey,
+        isAllDay: true,
+      }
+      storeUpdateEvent(task.id, weekUpdates)
+      await safeCalDAVUpdate(
+        caldavUpdateEvent,
+        task.calendarId,
+        { ...task, ...weekUpdates },
+        weekUpdates,
+        i18n.t('errors:ui.dragSync.task')
+      )
+      return
+    }
+
+    // A task lifted out of a week popover and dropped on a day: the day becomes
+    // its whole range, so it stops being a "sometime this week" task.
+    if (isWeekPill) {
+      const weekTask = draggedEventRef.current
+      draggedEventRef.current = null
+      if (!weekTask || weekTask.type !== 'task' || !/^\d{4}-\d{2}-\d{2}$/.test(droppableId)) {
+        return
+      }
+      const dayUpdates = {
+        start: `${droppableId}T00:00:00`,
+        end: `${droppableId}T23:59:59`,
+        dueDate: droppableId,
+        isAllDay: true,
+      }
+      storeUpdateEvent(weekTask.id, dayUpdates)
+      await safeCalDAVUpdate(
+        caldavUpdateEvent,
+        weekTask.calendarId,
+        { ...weekTask, ...dayUpdates },
+        dayUpdates,
+        i18n.t('errors:ui.dragSync.task')
+      )
+      return
+    }
+
     const dayStr = droppableId
 
     if (!dayStr) return
@@ -510,7 +593,7 @@ export function CalendarGrid(): JSX.Element {
       originalEvent.calendarId,
       { ...originalEvent, ...updates },
       updates,
-      'Failed to sync dragged event'
+      i18n.t('errors:ui.dragSync.event')
     )
   }
 
@@ -592,6 +675,10 @@ export function CalendarGrid(): JSX.Element {
           calendars.some(
             (calendar) => calendar.showTasksInViews !== false && calendar.id === event.calendarId
           ) &&
+          // "Sometime this week" tasks are due on the week's last day, so
+          // filed by due date they'd read as due that Sunday. They live in the
+          // row's gutter badge instead.
+          !isWeekScopedTask(event) &&
           !(hideCompletedTasksInMonthView && event.completed) &&
           (selectedCategoryNames.length === 0 ||
             event.categories?.some((c) => selectedCategoryNames.includes(c)))
@@ -600,6 +687,110 @@ export function CalendarGrid(): JSX.Element {
     }
     return map
   }, [days, events, calendars, hideCompletedTasksInMonthView, selectedCategoryNames])
+
+  // Each week row's "sometime this week" tasks, filtered the way the month's
+  // day cells filter tasks so the badge count agrees with the rest of the grid.
+  const weekTasksByRow = useMemo(() => {
+    const allowedCalendarIds = new Set(
+      calendars
+        .filter((calendar) => calendar.isVisible && calendar.showTasksInViews !== false)
+        .map((calendar) => calendar.id)
+    )
+    return Array.from({ length: numWeeks }, (_, weekIdx) =>
+      weekScopedTasksInRange(
+        events,
+        format(days[weekIdx * 7], 'yyyy-MM-dd'),
+        format(days[weekIdx * 7 + 6], 'yyyy-MM-dd'),
+        allowedCalendarIds
+      ).filter(
+        (task) =>
+          !(hideCompletedTasksInMonthView && task.completed) &&
+          (selectedCategoryNames.length === 0 ||
+            task.categories?.some((c) => selectedCategoryNames.includes(c)))
+      )
+    )
+  }, [numWeeks, days, events, calendars, hideCompletedTasksInMonthView, selectedCategoryNames])
+
+  // The gutter is the week numbers' column, but it also carries the week-task
+  // badges. With numbers off it stays (slimmer) whenever any week task exists,
+  // checked across the whole store so it doesn't appear and vanish as months
+  // are paged through.
+  const hasAnyWeekTask = useMemo(() => events.some(isWeekScopedTask), [events])
+  const showGutter = showWeekNumbers || hasAnyWeekTask
+  const [weekPopover, setWeekPopover] = useState<{
+    weekIdx: number
+    x: number
+    y: number
+  } | null>(null)
+  const closeWeekPopover = useCallback(() => setWeekPopover(null), [])
+
+  // Tasks (but not events, and not recurring series) can be dropped on a row's
+  // gutter to become that week's "sometime this week" task.
+  const canDropOnWeek =
+    activeEvent !== null &&
+    activeEvent.type === 'task' &&
+    !(
+      activeEvent.rruleString ||
+      activeEvent.recurrence ||
+      activeEvent.recurrenceId ||
+      activeEvent.occurrenceMasterId
+    )
+
+  const dragOverlayContent = activeEvent ? (
+    draggingWeekPill ? (
+      <div className={styles.weekTaskGhost}>{activeEvent.title}</div>
+    ) : (
+      <EventCard
+        event={activeEvent}
+        compact={activeLayout.compact}
+        monthView={activeLayout.monthView}
+        dotMode={activeLayout.dotMode}
+        isMobileMonth={activeLayout.isMobileMonth}
+        enableResize={false}
+      />
+    )
+  ) : null
+
+  // A gutter wins only while the pointer is actually inside it: it is a narrow
+  // column, so by rectangle overlap alone the day cells would always beat it.
+  const collisionDetection: CollisionDetection = (args) => {
+    const gutter = pointerWithin(args).filter((c) => String(c.id).startsWith(WEEK_ROW_DROP_PREFIX))
+    return gutter.length > 0 ? gutter : rectIntersection(args)
+  }
+
+  // Badge for one week row. Kept while its popover is open even if the list
+  // empties (last task ticked off), so the popover's anchor doesn't unmount.
+  const renderWeekBadge = (weekIdx: number, weekNum: number): JSX.Element | null => {
+    const count = weekTasksByRow[weekIdx]?.length ?? 0
+    const open = weekPopover?.weekIdx === weekIdx
+    return (
+      <WeekTasksBadge
+        count={count}
+        weekNumber={weekNum}
+        expanded={open}
+        onOpen={(anchor) => {
+          if (open) {
+            setWeekPopover(null)
+            return
+          }
+          const rect = anchor.getBoundingClientRect()
+          setWeekPopover({ weekIdx, x: rect.left, y: rect.bottom + 4 })
+        }}
+      />
+    )
+  }
+
+  const weekPopoverElement =
+    weekPopover && days[weekPopover.weekIdx * 7] ? (
+      <WeekTasksPopover
+        tasks={weekTasksByRow[weekPopover.weekIdx] ?? []}
+        weekStartKey={format(days[weekPopover.weekIdx * 7], 'yyyy-MM-dd')}
+        weekEndKey={format(days[weekPopover.weekIdx * 7 + 6], 'yyyy-MM-dd')}
+        weekNumber={weekNumbers[weekPopover.weekIdx]}
+        position={{ x: weekPopover.x, y: weekPopover.y }}
+        onClose={closeWeekPopover}
+      />
+    ) : null
 
   const visibleTasksMap = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>()
@@ -993,7 +1184,7 @@ export function CalendarGrid(): JSX.Element {
     // Keep automatic event capacity aligned with the adaptive row floor. The
     // floor is lowered on short windows, so Auto can reduce the number of
     // cards before the grid needs to fall back to scrolling.
-    rowHeightFloor: showWeekNumbers ? adaptiveRowFloor : 0,
+    rowHeightFloor: showGutter ? adaptiveRowFloor : 0,
   })
   // Auto is on but nothing has been measured yet (first paint, or a hidden
   // grid): fall back to the old default rather than rendering every event.
@@ -1125,7 +1316,12 @@ export function CalendarGrid(): JSX.Element {
               maxHeight: (800 * gridRatio) / 0.6,
             }}
           >
-            <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={collisionDetection}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+            >
               <div className={styles.gridPanel} ref={containerRef} {...bind}>
                 <div
                   ref={gridScrollRef}
@@ -1135,7 +1331,7 @@ export function CalendarGrid(): JSX.Element {
                   style={
                     {
                       '--day-cell-height': `${rowHeight}px`,
-                      '--month-row-min-height': `${showWeekNumbers ? adaptiveRowFloor : 0}px`,
+                      '--month-row-min-height': `${showGutter ? adaptiveRowFloor : 0}px`,
                       '--slide-x': monthChangeMotion.initial
                         ? `${monthChangeMotion.initial.x || 0}px`
                         : '0px',
@@ -1148,10 +1344,12 @@ export function CalendarGrid(): JSX.Element {
                   }
                 >
                   <div
-                    className={`${styles.header} ${!showWeekNumbers ? styles.headerNoWeekNum : ''}`}
+                    className={`${styles.header} ${!showGutter ? styles.headerNoWeekNum : !showWeekNumbers ? styles.headerSlim : ''}`}
                     data-component="calendar-grid-header"
                   >
-                    {showWeekNumbers && <div className={styles.weekNumHeader}>W#</div>}
+                    {showGutter && (
+                      <div className={styles.weekNumHeader}>{showWeekNumbers ? 'W#' : ''}</div>
+                    )}
                     {weekdays.map((day) => (
                       <div key={day} className={styles.weekday}>
                         {day}
@@ -1171,38 +1369,43 @@ export function CalendarGrid(): JSX.Element {
                       return (
                         <div
                           key={weekIdx}
-                          className={`${styles.weekRow} ${!showWeekNumbers ? styles.weekRowNoWeekNum : ''} ${compressWeekRows && isPastWeek ? styles.compressedWeek : ''}`}
+                          className={`${styles.weekRow} ${!showGutter ? styles.weekRowNoWeekNum : !showWeekNumbers ? styles.weekRowSlim : ''} ${compressWeekRows && isPastWeek ? styles.compressedWeek : ''}`}
                         >
-                          {showWeekNumbers && (
-                            <div
-                              className={styles.weekNumber}
+                          {showGutter && (
+                            <WeekGutterCell
+                              weekStartKey={format(days[weekIdx * 7], 'yyyy-MM-dd')}
+                              acceptsTask={canDropOnWeek}
+                              className={`${styles.weekNumber} ${!showWeekNumbers ? styles.weekNumberSlim : ''}`}
                               onClick={() => handleWeekClick(days[weekIdx * 7])}
                             >
-                              <div
-                                key={weekNum}
-                                className={
-                                  monthChangeMotion.initial ? styles.dayContentSlide : undefined
-                                }
-                                style={
-                                  {
-                                    width: '100%',
-                                    height: '28px',
-                                    display: 'flex',
-                                    justifyContent: 'center',
-                                    alignItems: 'center',
-                                    '--slide-x': monthChangeMotion.initial
-                                      ? `${monthChangeMotion.initial.x || 0}px`
-                                      : '0px',
-                                    '--slide-y': monthChangeMotion.initial
-                                      ? `${monthChangeMotion.initial.y || 0}px`
-                                      : '0px',
-                                    '--slide-duration': `${monthChangeMotion.transition.duration}s`,
-                                  } as React.CSSProperties
-                                }
-                              >
-                                {weekNum}
-                              </div>
-                            </div>
+                              {showWeekNumbers && (
+                                <div
+                                  key={weekNum}
+                                  className={
+                                    monthChangeMotion.initial ? styles.dayContentSlide : undefined
+                                  }
+                                  style={
+                                    {
+                                      width: '100%',
+                                      height: '28px',
+                                      display: 'flex',
+                                      justifyContent: 'center',
+                                      alignItems: 'center',
+                                      '--slide-x': monthChangeMotion.initial
+                                        ? `${monthChangeMotion.initial.x || 0}px`
+                                        : '0px',
+                                      '--slide-y': monthChangeMotion.initial
+                                        ? `${monthChangeMotion.initial.y || 0}px`
+                                        : '0px',
+                                      '--slide-duration': `${monthChangeMotion.transition.duration}s`,
+                                    } as React.CSSProperties
+                                  }
+                                >
+                                  {weekNum}
+                                </div>
+                              )}
+                              {renderWeekBadge(weekIdx, weekNum)}
+                            </WeekGutterCell>
                           )}
                           {days.slice(weekIdx * 7, weekIdx * 7 + 7).map((day, idx) => {
                             const dateKey = format(day, 'yyyy-MM-dd')
@@ -1219,6 +1422,7 @@ export function CalendarGrid(): JSX.Element {
                                 dateKey={dateKey}
                                 day={day}
                                 isWeekStart={idx === 0}
+                                weekDaysLeft={7 - idx}
                                 monthChangeMotion={monthChangeMotion}
                                 dayEvents={dayEvents}
                                 dayTasks={dayTasks}
@@ -1267,18 +1471,8 @@ export function CalendarGrid(): JSX.Element {
                   </div>
                 </div>
               </div>
-              <DragOverlay dropAnimation={null}>
-                {activeEvent ? (
-                  <EventCard
-                    event={activeEvent}
-                    compact={activeLayout.compact}
-                    monthView={activeLayout.monthView}
-                    dotMode={activeLayout.dotMode}
-                    isMobileMonth={activeLayout.isMobileMonth}
-                    enableResize={false}
-                  />
-                ) : null}
-              </DragOverlay>
+              {weekPopoverElement}
+              <DragOverlay dropAnimation={null}>{dragOverlayContent}</DragOverlay>
             </DndContext>
           </div>
           <div
@@ -1327,7 +1521,12 @@ export function CalendarGrid(): JSX.Element {
 
   return (
     <>
-      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={collisionDetection}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
         <div
           className={`${styles.gridPanel} ${styles.gridPanelStandalone}`}
           ref={containerRef}
@@ -1341,7 +1540,7 @@ export function CalendarGrid(): JSX.Element {
             style={
               {
                 '--day-cell-height': `${rowHeight}px`,
-                '--month-row-min-height': `${showWeekNumbers ? adaptiveRowFloor : 0}px`,
+                '--month-row-min-height': `${showGutter ? adaptiveRowFloor : 0}px`,
                 '--slide-x': monthChangeMotion.initial
                   ? `${monthChangeMotion.initial.x || 0}px`
                   : '0px',
@@ -1354,10 +1553,12 @@ export function CalendarGrid(): JSX.Element {
             }
           >
             <div
-              className={`${styles.header} ${!showWeekNumbers ? styles.headerNoWeekNum : ''}`}
+              className={`${styles.header} ${!showGutter ? styles.headerNoWeekNum : !showWeekNumbers ? styles.headerSlim : ''}`}
               data-component="calendar-grid-header"
             >
-              {showWeekNumbers && <div className={styles.weekNumHeader}>W#</div>}
+              {showGutter && (
+                <div className={styles.weekNumHeader}>{showWeekNumbers ? 'W#' : ''}</div>
+              )}
               {weekdays.map((day) => (
                 <div key={day} className={styles.weekday}>
                   {day}
@@ -1377,29 +1578,34 @@ export function CalendarGrid(): JSX.Element {
                 return (
                   <div
                     key={weekIdx}
-                    className={`${styles.weekRow} ${!showWeekNumbers ? styles.weekRowNoWeekNum : ''} ${compressWeekRows && isPastWeek ? styles.compressedWeek : ''}`}
+                    className={`${styles.weekRow} ${!showGutter ? styles.weekRowNoWeekNum : !showWeekNumbers ? styles.weekRowSlim : ''} ${compressWeekRows && isPastWeek ? styles.compressedWeek : ''}`}
                   >
-                    {showWeekNumbers && (
-                      <div
-                        className={styles.weekNumber}
+                    {showGutter && (
+                      <WeekGutterCell
+                        weekStartKey={format(days[weekIdx * 7], 'yyyy-MM-dd')}
+                        acceptsTask={canDropOnWeek}
+                        className={`${styles.weekNumber} ${!showWeekNumbers ? styles.weekNumberSlim : ''}`}
                         onClick={() => handleWeekClick(days[weekIdx * 7])}
                       >
-                        <AnimatePresence>
-                          <motion.div
-                            key={weekNum}
-                            {...monthChangeMotion}
-                            style={{
-                              width: '100%',
-                              height: '28px',
-                              display: 'flex',
-                              justifyContent: 'center',
-                              alignItems: 'center',
-                            }}
-                          >
-                            {weekNum}
-                          </motion.div>
-                        </AnimatePresence>
-                      </div>
+                        {showWeekNumbers && (
+                          <AnimatePresence>
+                            <motion.div
+                              key={weekNum}
+                              {...monthChangeMotion}
+                              style={{
+                                width: '100%',
+                                height: '28px',
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                              }}
+                            >
+                              {weekNum}
+                            </motion.div>
+                          </AnimatePresence>
+                        )}
+                        {renderWeekBadge(weekIdx, weekNum)}
+                      </WeekGutterCell>
                     )}
                     {days.slice(weekIdx * 7, weekIdx * 7 + 7).map((day, idx) => {
                       const dateKey = format(day, 'yyyy-MM-dd')
@@ -1416,6 +1622,7 @@ export function CalendarGrid(): JSX.Element {
                           dateKey={dateKey}
                           day={day}
                           isWeekStart={idx === 0}
+                          weekDaysLeft={7 - idx}
                           monthChangeMotion={monthChangeMotion}
                           dayEvents={dayEvents}
                           dayTasks={dayTasks}
@@ -1466,18 +1673,8 @@ export function CalendarGrid(): JSX.Element {
             </div>
           </div>
         </div>
-        <DragOverlay dropAnimation={null}>
-          {activeEvent ? (
-            <EventCard
-              event={activeEvent}
-              compact={activeLayout.compact}
-              monthView={activeLayout.monthView}
-              dotMode={activeLayout.dotMode}
-              isMobileMonth={activeLayout.isMobileMonth}
-              enableResize={false}
-            />
-          ) : null}
-        </DragOverlay>
+        {weekPopoverElement}
+        <DragOverlay dropAnimation={null}>{dragOverlayContent}</DragOverlay>
       </DndContext>
     </>
   )
@@ -1497,10 +1694,7 @@ function monthRowKind(
 ): MonthRowKind {
   if (isCompactMobile) return 'dot'
   if (item.type === 'task') return hasDueTime(item) ? 'taskWithTime' : 'task'
-  const isMultiDay = !isSameDay(
-    toEventInstant(item.start, item.timezone),
-    eventLastDay(item)
-  )
+  const isMultiDay = !isSameDay(toEventInstant(item.start, item.timezone), eventLastDay(item))
   const compact =
     isPastWeek ||
     !!item.isFragment ||
@@ -1514,6 +1708,8 @@ interface DroppableDayProps {
   dateKey: string
   day: Date
   isWeekStart: boolean
+  /** Columns from this day to the end of its week row, inclusive. */
+  weekDaysLeft: number
   dayEvents: CalendarEvent[]
   dayTasks: CalendarEvent[]
   popupTaskItems: CalendarEvent[]
@@ -1555,6 +1751,7 @@ const DroppableDay = React.memo(function DroppableDay({
   dateKey,
   day,
   isWeekStart,
+  weekDaysLeft,
   monthChangeMotion,
   dayEvents,
   dayTasks,
@@ -1822,6 +2019,7 @@ const DroppableDay = React.memo(function DroppableDay({
                   .map((event) => (
                     <motion.div
                       key={event.id}
+                      style={fragmentTitleWrapperStyle(event, isWeekStart)}
                       variants={eventCardVariants}
                       initial={monthChangeMotion.initial ? false : cardInitial}
                       animate="animate"
@@ -1839,6 +2037,7 @@ const DroppableDay = React.memo(function DroppableDay({
                         hideFragmentTitle={
                           event.isFragment && !event.isFirstFragment && !isWeekStart
                         }
+                        fragmentSpanDays={fragmentSpanDays(event, day, weekDaysLeft)}
                       />
                     </motion.div>
                   ))}
@@ -1953,6 +2152,7 @@ const DroppableDay = React.memo(function DroppableDay({
                   return (
                     <motion.div
                       key={event.id}
+                      style={fragmentTitleWrapperStyle(event, isWeekStart)}
                       // What the capacity hook measures a row of this shape
                       // by. Tagged with what actually rendered, not with the
                       // prediction, so a promoted single (forced compact to
@@ -1973,6 +2173,7 @@ const DroppableDay = React.memo(function DroppableDay({
                         hideFragmentTitle={
                           event.isFragment && !event.isFirstFragment && !isWeekStart
                         }
+                        fragmentSpanDays={fragmentSpanDays(event, day, weekDaysLeft)}
                       />
                     </motion.div>
                   )
@@ -2017,7 +2218,7 @@ const DroppableDay = React.memo(function DroppableDay({
                   className={styles.moreEvents}
                   onClick={handleMoreEventsClick}
                 >
-                  +{hiddenCount} more
+                  {t('views.week.moreCount', { count: hiddenCount })}
                 </button>
               )}
             </div>
@@ -2045,8 +2246,8 @@ const DroppableDay = React.memo(function DroppableDay({
           events={subtaskPopup.subtasks}
           position={subtaskPopup.position}
           title={subtaskPopup.parent.title}
-          countLabel={`${subtaskPopup.subtasks.length} subtask${subtaskPopup.subtasks.length === 1 ? '' : 's'}`}
-          ariaLabel={`Subtasks for ${subtaskPopup.parent.title}`}
+          countLabel={t('ui.subtasks.count', { count: subtaskPopup.subtasks.length })}
+          ariaLabel={t('ui.subtasks.for', { title: subtaskPopup.parent.title })}
           onClose={() => setSubtaskPopup(null)}
           onEventClick={(event) => {
             setSubtaskPopup(null)

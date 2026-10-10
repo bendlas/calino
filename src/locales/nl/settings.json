@@ -4,6 +4,7 @@
     "general": "Algemeen",
     "appearance": "Uiterlijk",
     "calendar": "Agenda",
+    "tasks": "Taken",
     "categories": "Categorieën",
     "notifications": "Meldingen",
     "sync": "Synchronisatie",
@@ -103,7 +104,7 @@
     },
     "syncError": {
       "cors": "Je server blokkeert de verbinding. Dit betekent meestal dat de CORS-headers niet zijn ingesteld. Controleer of je CalDAV-server deze verstuurt en reageert op OPTIONS:",
-      "corsHelp": "Ga naar Synchronisatie → je account → <strong>Diagnostiek</strong> om te zien wat ontbreekt. Raadpleeg de <link>Baikal CORS-documentatie</link> voor hulp.",
+      "corsHelp": "Ga naar Synchronisatie → je account → <strong>Diagnostiek</strong> om te zien wat ontbreekt. Raadpleeg de <docs>Baikal CORS-documentatie</docs> voor hulp.",
       "network": "Je CalDAV-server is niet bereikbaar. Controleer je internetverbinding en of de server online is. Een ontbrekende CORS-header ziet er vanaf hier hetzelfde uit; probeer <strong>Diagnostiek</strong> onder Synchronisatie als de server online is.",
       "timeout": "Je CalDAV-server heeft te lang nodig gehad om te reageren. Mogelijk is deze overbelast — probeer het straks opnieuw.",
       "auth": "Aanmelden mislukt. Controleer je CalDAV-gebruikersnaam en wachtwoord. Veel aanbieders vereisen een app-specifiek wachtwoord in plaats van je accountwachtwoord.",
@@ -123,6 +124,31 @@
     "thursday": "donderdag",
     "friday": "vrijdag",
     "saturday": "zaterdag"
+  },
+  "tasks": {
+    "title": "Taken",
+    "display": "Weergave",
+    "showTaskCalendarLabels": {
+      "label": "Kalendernamen tonen in Taken",
+      "desc": "Toon de kalender van elke taak naast de vervaldatum wanneer meerdere taakkalenders zijn ingeschakeld."
+    },
+    "showSidebarTaskCalendarLabels": {
+      "label": "Kalendernamen tonen in de zijbalk",
+      "desc": "Toon de kalender van een taak bij aanwijzen of toetsenbordfocus wanneer meerdere taakkalenders zijn ingeschakeld."
+    },
+    "hideCompletedTasks": {
+      "label": "Voltooide taken verbergen",
+      "desc": "Voltooide taken niet tonen in het agendaraster"
+    },
+    "reminders": "Herinneringen",
+    "taskDueDateReminders": {
+      "label": "Herinneringen voor taakvervaldatums",
+      "desc": "Melding wanneer een taak verloopt: op de vervaltijd, of om 9:00 voor taken met alleen een datum"
+    },
+    "overdueTaskBadge": {
+      "label": "Badge voor achterstallige taken",
+      "desc": "Een badge op het app-pictogram tonen voor achterstallige taken"
+    }
   },
   "calendar": {
     "title": "Agenda",
@@ -197,11 +223,6 @@
       "never": "Nooit",
       "current": "Huidige maand",
       "all": "Alle"
-    },
-    "hideCompletedTasks": {
-      "label": "Voltooide taken verbergen",
-      "desc": "Voltooide taken niet tonen in het agendaraster",
-      "ariaLabel": "Voltooide taken verbergen"
     },
     "monthViewEventLimit": {
       "label": "Gebeurtenissen vóór samenvatting",
@@ -483,17 +504,6 @@
       "betaP1": "De controle op de achtergrond is afhankelijk van de batterij-instellingen van je telefoon. Vooral Xiaomi-, Samsung-, OPPO-, OnePlus- en Huawei-apparaten beperken apps op de achtergrond sterk en slaan de controle soms stilzwijgend over. Als je gebeurtenissen verouderd lijken, stel dan <strong>Geen beperkingen</strong> in bij de batterij-instellingen van Android voor Calino.",
       "betaP2": "Als een gespiegelde agenda niet in je agenda-app verschijnt, is deze meestal verborgen en niet verdwenen — nieuwe agenda’s staan in de lijst met weer te geven agenda’s van die app vaak standaard uitgevinkt."
     },
-    "tasks": "Taken",
-    "taskDueDateReminders": {
-      "label": "Herinneringen voor taakvervaldatums",
-      "desc": "Een melding geven wanneer de vervaldatum van een taak aanbreekt",
-      "ariaLabel": "Herinneringen voor taakvervaldatums"
-    },
-    "overdueTaskBadge": {
-      "label": "Badge voor achterstallige taken",
-      "desc": "Een badge op het app-pictogram tonen voor achterstallige taken",
-      "ariaLabel": "Badge voor achterstallige taken"
-    },
     "test": {
       "label": "Testmelding",
       "descDefault": "Klik om meldingen in te schakelen en te testen",
@@ -533,14 +543,20 @@
     "subscribe": "Abonneren op agenda (.ics)",
     "confirmRemoveSubscription": "Dit agenda-abonnement verwijderen? De gebeurtenissen worden lokaal verwijderd.",
     "confirmRemoveAccount": "Weet je zeker dat je dit account wilt verwijderen? De agendagegevens blijven lokaal bewaard.",
-    "credentialsNotFound": "Aanmeldgegevens niet gevonden"
+    "credentialsNotFound": "Aanmeldgegevens niet gevonden",
+    "accountProtocol": "Accountprotocol"
   },
   "data": {
+    "webmcp": {
+      "label": "Toegang voor browser-AI (WebMCP, experimenteel)",
+      "desc": "Sta AI-agenten in de browser toe om kalendernamen en samenvattingen van zichtbare afspraken te lezen, afspraken te openen en concepten klaar te zetten die je kunt controleren en opslaan. Resultaten kunnen naar de AI-aanbieder van de agent worden verzonden. Geldt alleen voor deze browser.",
+      "unavailable": "De WebMCP-API is niet beschikbaar op deze pagina. Schakel deze in je browser in en herstart de browser, of gebruik een browser met WebMCP-ondersteuning."
+    },
     "title": "Gegevens",
     "importExport": "Importeren en exporteren",
     "exportCalendar": {
       "label": "Agenda exporteren",
-      "desc": "Alle gebeurtenissen downloaden als standaard .ics-bestand",
+      "desc": "Download afspraken van alle agenda’s, of van één agenda, als standaard .ics-bestand",
       "exporting": "Exporteren…",
       "export": ".ics exporteren"
     },
@@ -593,19 +609,42 @@
     "dismiss": "Sluiten",
     "dangerZone": "Gevarenzone",
     "deleteAllEvents": {
-      "label": "Alle gebeurtenissen verwijderen",
-      "desc": "Alle gebeurtenissen definitief uit deze agenda verwijderen. Dit kan niet ongedaan worden gemaakt.",
-      "confirm": "Alle gebeurtenissen verwijderen? Dit kan niet ongedaan worden gemaakt.",
-      "action": "Alle gebeurtenissen verwijderen"
+      "label": "Lokale afspraken verwijderen",
+      "desc": "Verwijder afspraken van de geselecteerde agenda alleen van dit apparaat. Afspraken op je CalDAV-server worden niet verwijderd en kunnen bij de volgende synchronisatie weer verschijnen.",
+      "confirm": "Alle afspraken op dit apparaat verwijderen? Afspraken op je server worden niet verwijderd en kunnen na de volgende synchronisatie weer verschijnen. Dit kan niet ongedaan worden gemaakt.",
+      "action": "Lokale afspraken verwijderen",
+      "confirmCalendar": "Alle afspraken in “{{name}}” van dit apparaat verwijderen? Afspraken op je server worden niet verwijderd en kunnen na de volgende synchronisatie weer verschijnen. Dit kan niet ongedaan worden gemaakt."
     },
     "resetApp": {
-      "label": "Calino resetten",
-      "desc": "Alle gegevens, instellingen en verbonden accounts wissen en opnieuw beginnen.",
-      "confirm": "Weet je zeker dat je alle lokale gegevens wilt verwijderen? Dit kan niet ongedaan worden gemaakt.",
-      "action": "App resetten"
+      "label": "Calino op dit apparaat resetten",
+      "desc": "Wis alle instellingen, gekoppelde accounts en lokaal opgeslagen gegevens van dit apparaat en begin opnieuw. Agenda’s en afspraken op je servers blijven ongemoeid. Afspraken die alleen in Calino bestaan (nergens gesynchroniseerd) gaan verloren.",
+      "confirm": "Calino op dit apparaat resetten? Hiermee worden alle lokale gegevens, instellingen en gekoppelde accounts gewist. Agenda’s en afspraken op je servers worden niet verwijderd, maar afspraken die alleen in Calino bestaan gaan verloren. Dit kan niet ongedaan worden gemaakt.",
+      "action": "Dit apparaat resetten"
     },
     "duplicateDeleted": "Dubbele gebeurtenis verwijderd",
-    "duplicateDeleteFailed": "Gebeurtenis verwijderen mislukt. Probeer het opnieuw."
+    "duplicateDeleteFailed": "Gebeurtenis verwijderen mislukt. Probeer het opnieuw.",
+    "allCalendars": "Alle agenda’s",
+    "calendarPickerLabel": "Agenda",
+    "purgeCalendar": {
+      "label": "Alle afspraken van een agenda verwijderen",
+      "desc": "Verwijder alle afspraken van één agenda permanent, ook van je CalDAV-server. Dit kan niet ongedaan worden gemaakt.",
+      "placeholder": "Kies een agenda…",
+      "action": "Alles verwijderen…",
+      "done_one": "{{count}} afspraak verwijderd uit “{{name}}”",
+      "done_other": "{{count}} afspraken verwijderd uit “{{name}}”",
+      "partial": "{{deleted}} afspraken verwijderd uit “{{name}}”; {{failed}} konden niet van de server worden verwijderd en worden opnieuw geprobeerd",
+      "dialog": {
+        "title": "Alle afspraken verwijderen",
+        "message": "Je staat op het punt alle afspraken in <strong>“{{calendarName}}”</strong> te verwijderen. De agenda zelf blijft bestaan.",
+        "warningRemote_one": "Hiermee wordt <strong>{{count}} afspraak</strong> permanent verwijderd uit Calino en van de server. Dit kan niet ongedaan worden gemaakt.",
+        "warningRemote_other": "Hiermee worden <strong>{{count}} afspraken</strong> permanent verwijderd uit Calino en van de server. Dit kan niet ongedaan worden gemaakt.",
+        "warningLocal_one": "Hiermee wordt <strong>{{count}} afspraak</strong> permanent verwijderd uit Calino. Dit kan niet ongedaan worden gemaakt.",
+        "warningLocal_other": "Hiermee worden <strong>{{count}} afspraken</strong> permanent verwijderd uit Calino. Dit kan niet ongedaan worden gemaakt.",
+        "typeToConfirm": "Typ de naam van de agenda ter bevestiging:",
+        "confirm": "Alle afspraken verwijderen",
+        "deleting": "Verwijderen…"
+      }
+    }
   },
   "aiVision": {
     "title": "AI-foto-import",
@@ -742,8 +781,102 @@
     "summary": {
       "ok": "Alles is in orde.",
       "degraded": "Synchronisatie werkt, maar je server kan beter worden ingesteld.",
-      "broken": "Er is iets mis met deze server."
+      "broken": "De onderstaande controles vonden een probleem. Open een mislukte controle om te zien wat je moet aanpassen.",
+      "broken_page": "De verbinding is geblokkeerd door deze pagina, niet door je server. Open de mislukte controle voor je opties.",
+      "broken_credentials": "De server antwoordde, maar weigerde de gebruikersnaam of het wachtwoord."
     },
     "corsNote": " Controles met de aanduiding “afgeleid” konden niet rechtstreeks worden uitgelezen — browsers verbergen de CORS-headers van een server voor JavaScript."
+  },
+  "ui": {
+    "aiVision": {
+      "hintCheckKey": "Controleer je API-sleutel en basis-URL nogmaals.",
+      "emptyReply": "Het model gaf een leeg antwoord op de testprompt.",
+      "hintReasoning": "Als dit een redeneermodel is, heeft het mogelijk een hogere tokenlimiet nodig dan deze app toestaat — probeer een model zonder redenering als het probleem blijft.",
+      "hintNoVision": "Dit model antwoordde, maar lijkt geen beeldherkenning te ondersteunen. Kies een model met beeldondersteuning.",
+      "err": {
+        "auth": "Verificatie mislukt ({{status}}) — controleer of je API-sleutel klopt.",
+        "authAnthropic": "Verificatie mislukt ({{status}}) — controleer of je Anthropic API-sleutel klopt.",
+        "failed": "Verzoek mislukt ({{status}}): {{message}}",
+        "failedAnthropic": "Anthropic-verzoek mislukt ({{status}}): {{message}}",
+        "failedNoMessage": "Verzoek mislukt met status {{status}}",
+        "failedNoMessageAnthropic": "Anthropic-verzoek mislukt met status {{status}}",
+        "noText": "Het antwoord bevatte geen tekst",
+        "noTextAnthropic": "Het antwoord van Anthropic bevatte geen tekst"
+      }
+    },
+    "setup": {
+      "title": "Calino-installatie",
+      "subtitle": "Genereer een configuratiebestand voor je zelfgehoste Calino-instantie.",
+      "stepAccounts": "Accounts",
+      "stepPassword": "Wachtwoord",
+      "stepDownload": "Downloaden",
+      "remove": "{{name}} verwijderen",
+      "displayName": "Weergavenaam",
+      "optional": "(optioneel)",
+      "displayNamePlaceholder": "bijv. Privé, Werk",
+      "serverUrl": "Server-URL",
+      "username": "Gebruikersnaam",
+      "password": "Wachtwoord",
+      "connectionSuccessful": "Verbinding geslaagd",
+      "diagnose": "Verbinding diagnosticeren",
+      "testing": "Testen…",
+      "testConnection": "Verbinding testen",
+      "addAccount": "Account toevoegen",
+      "subscriptionsHeading": "Agenda-abonnementen (.ics)",
+      "name": "Naam",
+      "namePlaceholder": "bijv. Feestdagen",
+      "calendarUrl": "Agenda-URL",
+      "refreshInterval": "Vernieuwingsinterval (minuten)",
+      "proxyOptional": "Proxy-URL (optioneel)",
+      "proxyHint": "Alleen nodig als de agendahost cross-origin-verzoeken niet toestaat.",
+      "addSubscription": "Abonnement toevoegen",
+      "next": "Volgende →",
+      "masterPassword": "Hoofdwachtwoord",
+      "masterPlaceholder": "Kies een sterk wachtwoord",
+      "masterHint": "Met dit wachtwoord ontgrendel je je agenda’s in Calino.",
+      "confirmPassword": "Wachtwoord bevestigen",
+      "confirmPlaceholder": "Typ het opnieuw",
+      "back": "← Terug",
+      "encrypting": "Versleutelen…",
+      "generate": "Configuratie genereren",
+      "nextSteps": "Volgende stappen",
+      "step1": "Plaats <code>calino.config.json</code> in de hoofdmap van het project",
+      "step2": "Opnieuw bouwen: <code>docker compose up -d --build</code>",
+      "step3": "Open Calino en voer je hoofdwachtwoord in",
+      "rebuildWarning": "⚠️ De configuratie wordt tijdens het bouwen in de JS-bundel opgenomen. Je moet opnieuw bouwen om wijzigingen door te voeren.",
+      "startOver": "← Opnieuw beginnen",
+      "downloadAgain": "Opnieuw downloaden",
+      "done": "Klaar →",
+      "passwordsMismatch": "De wachtwoorden komen niet overeen.",
+      "passwordTooShort": "Het wachtwoord moet minstens 6 tekens bevatten.",
+      "encryptionFailed": "Versleuteling mislukt."
+    },
+    "categories": {
+      "unknown": "Onbekend",
+      "eventCount_one": "{{count}} gebeurtenis",
+      "eventCount_other": "{{count}} gebeurtenissen",
+      "matches_one": "{{count}} overeenkomst",
+      "matches_other": "{{count}} overeenkomsten",
+      "uncategorized": "({{count}} zonder categorie)",
+      "inCalendar": "{{count}} in {{name}}",
+      "willMatch_one": "Komt overeen met {{count}} gebeurtenis",
+      "willMatch_other": "Komt overeen met {{count}} gebeurtenissen",
+      "currentlyUncategorized": "({{count}} momenteel zonder categorie)"
+    },
+    "data": {
+      "untitledEvent": "Naamloze gebeurtenis",
+      "start": "Start: {{date}}",
+      "end": "Einde: {{date}}",
+      "fix": "Herstellen",
+      "delete": "Verwijderen",
+      "fixAll": "Alles herstellen ({{count}})",
+      "deleteAll": "Alles verwijderen",
+      "duplicateIntro": "Deze gebeurtenissen delen dezelfde unieke ID (UID) op je server, maar worden als aparte items opgeslagen. Calino kan er maar één per set tonen; de rest wordt verborgen om je agenda stabiel te houden. Dit komt meestal door een bulkkopie vanuit een andere app. Geef om dit op te lossen elke gebeurtenis een unieke UID op je server en synchroniseer daarna opnieuw.",
+      "duplicateUid": "Dubbele UID: {{uid}}",
+      "kept": "Behouden",
+      "hidden": "Verborgen",
+      "deleting": "Verwijderen…",
+      "dismiss": "Negeren"
+    }
   }
 }

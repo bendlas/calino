@@ -4,6 +4,7 @@
     "general": "Generale",
     "appearance": "Aspetto",
     "calendar": "Calendario",
+    "tasks": "Attività",
     "categories": "Categorie",
     "notifications": "Notifiche",
     "sync": "Sincronizzazione",
@@ -103,7 +104,7 @@
     },
     "syncError": {
       "cors": "Il tuo server sta bloccando la connessione. Questo in genere significa che le intestazioni CORS non sono configurate. Controlla che il tuo server CalDAV le invii e risponda alle richieste OPTIONS:",
-      "corsHelp": "Sincronizzazione → il tuo account → <strong>Diagnostica</strong> indica quale parte manca. Consulta la <link>documentazione CORS di Baikal</link> per assistenza.",
+      "corsHelp": "Sincronizzazione → il tuo account → <strong>Diagnostica</strong> indica quale parte manca. Consulta la <docs>documentazione CORS di Baikal</docs> per assistenza.",
       "network": "Impossibile raggiungere il server CalDAV. Controlla la tua connessione Internet e assicurati che il server sia online: un'intestazione CORS mancante sembra identica da qui, quindi prova <strong>Diagnostica</strong> in Sincronizzazione se il server è attivo.",
       "timeout": "Il tuo server CalDAV ha impiegato troppo tempo per rispondere. Potrebbe essere sovraccarico: riprova tra un attimo.",
       "auth": "Autenticazione non riuscita. Controlla il tuo nome utente e password CalDAV. Molti provider richiedono una password specifica per l'app anziché la password dell'account.",
@@ -123,6 +124,31 @@
     "thursday": "Giovedì",
     "friday": "Venerdì",
     "saturday": "Sabato"
+  },
+  "tasks": {
+    "title": "Attività",
+    "display": "Visualizzazione",
+    "showTaskCalendarLabels": {
+      "label": "Mostra i nomi dei calendari in Attività",
+      "desc": "Mostra il calendario di ogni attività accanto alla scadenza quando sono attivati più calendari di attività."
+    },
+    "showSidebarTaskCalendarLabels": {
+      "label": "Mostra i nomi dei calendari nella barra laterale",
+      "desc": "Mostra il calendario di un'attività al passaggio del mouse o con il focus della tastiera quando sono attivati più calendari di attività."
+    },
+    "hideCompletedTasks": {
+      "label": "Nascondi attività completate",
+      "desc": "Non mostrare le attività svolte nella griglia del calendario"
+    },
+    "reminders": "Promemoria",
+    "taskDueDateReminders": {
+      "label": "Promemoria della data di scadenza dell'attività",
+      "desc": "Avvisa quando scade un'attività: all'ora di scadenza, o alle 9:00 se ha solo la data"
+    },
+    "overdueTaskBadge": {
+      "label": "Badge attività scadute",
+      "desc": "Mostra un badge sull'icona dell'app per le attività scadute"
+    }
   },
   "calendar": {
     "title": "Calendario",
@@ -197,11 +223,6 @@
       "never": "Mai",
       "current": "Mese corrente",
       "all": "Tutti"
-    },
-    "hideCompletedTasks": {
-      "label": "Nascondi attività completate",
-      "desc": "Non mostrare le attività svolte nella griglia del calendario",
-      "ariaLabel": "Nascondi le attività completate"
     },
     "monthViewEventLimit": {
       "label": "Eventi visibili prima del riepilogo",
@@ -483,17 +504,6 @@
       "betaP1": "Il controllo in background dipende dalle impostazioni della batteria del telefono. In particolare, i dispositivi Xiaomi, Samsung, OPPO, OnePlus e Huawei bloccano in modo aggressivo le app in background e possono saltare il controllo senza avvisare. Se gli eventi non sono aggiornati, imposta Calino su <strong>Nessuna restrizione</strong> nelle impostazioni della batteria di Android.",
       "betaP2": "Se un calendario con mirroring non viene visualizzato nell'app di calendario, in genere è nascosto anziché mancante: i nuovi calendari spesso arrivano deselezionati nell'elenco dei calendari da visualizzare dell'app."
     },
-    "tasks": "Attività",
-    "taskDueDateReminders": {
-      "label": "Promemoria della data di scadenza dell'attività",
-      "desc": "Avvisa quando arriva la data di scadenza di un'attività",
-      "ariaLabel": "Promemoria della data di scadenza dell'attività"
-    },
-    "overdueTaskBadge": {
-      "label": "Badge attività scadute",
-      "desc": "Mostra un badge sull'icona dell'app per le attività scadute",
-      "ariaLabel": "Badge delle attività scadute"
-    },
     "test": {
       "label": "Notifica di prova",
       "descDefault": "Fai clic per attivare e provare le notifiche",
@@ -533,14 +543,20 @@
     "subscribe": "Abbonati al calendario (.ics)",
     "confirmRemoveSubscription": "Rimuovere questo abbonamento al calendario? I suoi eventi verranno eliminati dal dispositivo.",
     "confirmRemoveAccount": "Sei sicuro di voler rimuovere questo account? I dati del calendario verranno conservati localmente.",
-    "credentialsNotFound": "Credenziali non trovate"
+    "credentialsNotFound": "Credenziali non trovate",
+    "accountProtocol": "Protocollo dell’account"
   },
   "data": {
+    "webmcp": {
+      "label": "Accesso IA del browser (WebMCP, sperimentale)",
+      "desc": "Consenti agli agenti IA del browser di leggere i nomi dei calendari e i riepiloghi degli eventi visibili, aprire eventi e preparare bozze da rivedere e salvare. I risultati potrebbero essere inviati al fornitore IA dell’agente. Vale solo per questo browser.",
+      "unavailable": "L’API WebMCP non è disponibile in questa pagina. Abilitala nel browser e riavvialo, oppure usa un browser che supporta WebMCP."
+    },
     "title": "Dati",
     "importExport": "Importazione ed esportazione",
     "exportCalendar": {
       "label": "Esporta calendario",
-      "desc": "Scarica tutti gli eventi come file .ics standard",
+      "desc": "Scarica gli eventi di tutti i calendari, o di uno solo, come file .ics standard",
       "exporting": "Esportazione...",
       "export": "Esporta .ics"
     },
@@ -593,19 +609,42 @@
     "dismiss": "Ignora",
     "dangerZone": "Zona pericolosa",
     "deleteAllEvents": {
-      "label": "Elimina tutti gli eventi",
-      "desc": "Rimuovi definitivamente tutti gli eventi da questo calendario. Questa operazione non può essere annullata.",
-      "confirm": "Eliminare tutti gli eventi? Questa operazione non può essere annullata.",
-      "action": "Elimina tutti gli eventi"
+      "label": "Elimina eventi locali",
+      "desc": "Rimuovi gli eventi del calendario selezionato solo da questo dispositivo. Gli eventi sul tuo server CalDAV non vengono eliminati e potrebbero ricomparire alla prossima sincronizzazione.",
+      "confirm": "Eliminare tutti gli eventi salvati su questo dispositivo? Gli eventi sul tuo server non vengono eliminati e potrebbero ricomparire dopo la prossima sincronizzazione. Questa azione non può essere annullata.",
+      "action": "Elimina eventi locali",
+      "confirmCalendar": "Eliminare tutti gli eventi in “{{name}}” da questo dispositivo? Gli eventi sul tuo server non vengono eliminati e potrebbero ricomparire dopo la prossima sincronizzazione. Questa azione non può essere annullata."
     },
     "resetApp": {
-      "label": "Reimposta Calino",
-      "desc": "Cancella tutti i dati, le impostazioni e gli account collegati e ricomincia da capo.",
-      "confirm": "Sei sicuro di voler eliminare tutti i dati locali? Questa operazione non può essere annullata.",
-      "action": "Reimposta l'app"
+      "label": "Reimposta Calino su questo dispositivo",
+      "desc": "Cancella tutte le impostazioni, gli account collegati e i dati salvati localmente su questo dispositivo e ricomincia da capo. I calendari e gli eventi sui tuoi server non vengono toccati. Gli eventi che esistono solo in Calino (non sincronizzati) vanno persi.",
+      "confirm": "Reimpostare Calino su questo dispositivo? Verranno cancellati tutti i dati locali, le impostazioni e gli account collegati. I calendari e gli eventi sui tuoi server non vengono eliminati, ma gli eventi che esistono solo in Calino andranno persi. Questa azione non può essere annullata.",
+      "action": "Reimposta questo dispositivo"
     },
     "duplicateDeleted": "Evento duplicato eliminato",
-    "duplicateDeleteFailed": "Impossibile eliminare l'evento. Per favore riprova."
+    "duplicateDeleteFailed": "Impossibile eliminare l'evento. Per favore riprova.",
+    "allCalendars": "Tutti i calendari",
+    "calendarPickerLabel": "Calendario",
+    "purgeCalendar": {
+      "label": "Elimina tutti gli eventi di un calendario",
+      "desc": "Elimina definitivamente tutti gli eventi di un calendario, anche dal tuo server CalDAV. Questa azione non può essere annullata.",
+      "placeholder": "Seleziona un calendario…",
+      "action": "Elimina tutto…",
+      "done_one": "{{count}} evento eliminato da “{{name}}”",
+      "done_other": "{{count}} eventi eliminati da “{{name}}”",
+      "partial": "{{deleted}} eventi eliminati da “{{name}}”; {{failed}} non è stato possibile eliminarli dal server e verranno ritentati",
+      "dialog": {
+        "title": "Elimina tutti gli eventi",
+        "message": "Stai per eliminare tutti gli eventi di <strong>“{{calendarName}}”</strong>. Il calendario stesso viene mantenuto.",
+        "warningRemote_one": "Verrà eliminato definitivamente <strong>{{count}} evento</strong> da Calino e dal server. Questa azione non può essere annullata.",
+        "warningRemote_other": "Verranno eliminati definitivamente <strong>{{count}} eventi</strong> da Calino e dal server. Questa azione non può essere annullata.",
+        "warningLocal_one": "Verrà eliminato definitivamente <strong>{{count}} evento</strong> da Calino. Questa azione non può essere annullata.",
+        "warningLocal_other": "Verranno eliminati definitivamente <strong>{{count}} eventi</strong> da Calino. Questa azione non può essere annullata.",
+        "typeToConfirm": "Digita il nome del calendario per confermare:",
+        "confirm": "Elimina tutti gli eventi",
+        "deleting": "Eliminazione…"
+      }
+    }
   },
   "aiVision": {
     "title": "Importazione di foto AI",
@@ -742,8 +781,102 @@
     "summary": {
       "ok": "Tutto è a posto.",
       "degraded": "La sincronizzazione funzionerà, ma il tuo server potrebbe essere configurato meglio.",
-      "broken": "C'è qualcosa che non va in questo server."
+      "broken": "I controlli qui sotto hanno trovato un problema. Apri un controllo non riuscito per vedere cosa modificare.",
+      "broken_page": "La connessione è stata bloccata da questa pagina, non dal tuo server. Apri il controllo non riuscito per vedere le opzioni.",
+      "broken_credentials": "Il server ha risposto, ma ha rifiutato nome utente o password."
     },
     "corsNote": " I controlli contrassegnati come “dedotto” non possono essere letti direttamente: i browser nascondono a JavaScript le intestazioni CORS del server."
+  },
+  "ui": {
+    "aiVision": {
+      "hintCheckKey": "Ricontrolla la chiave API e l’URL di base.",
+      "emptyReply": "Il modello ha restituito una risposta vuota al prompt di prova.",
+      "hintReasoning": "Se è un modello di ragionamento, potrebbe richiedere un limite di token più alto di quello consentito da questa app: prova un modello senza ragionamento se il problema persiste.",
+      "hintNoVision": "Il modello ha risposto ma non sembra supportare la comprensione delle immagini. Scegli un modello con capacità visive.",
+      "err": {
+        "auth": "Autenticazione non riuscita ({{status}}): controlla che la tua chiave API sia corretta.",
+        "authAnthropic": "Autenticazione non riuscita ({{status}}): controlla che la tua chiave API Anthropic sia corretta.",
+        "failed": "Richiesta non riuscita ({{status}}): {{message}}",
+        "failedAnthropic": "Richiesta ad Anthropic non riuscita ({{status}}): {{message}}",
+        "failedNoMessage": "Richiesta non riuscita con stato {{status}}",
+        "failedNoMessageAnthropic": "Richiesta ad Anthropic non riuscita con stato {{status}}",
+        "noText": "La risposta non conteneva testo",
+        "noTextAnthropic": "La risposta di Anthropic non conteneva testo"
+      }
+    },
+    "setup": {
+      "title": "Configurazione di Calino",
+      "subtitle": "Genera un file di configurazione per la tua istanza Calino self-hosted.",
+      "stepAccounts": "Account",
+      "stepPassword": "Password",
+      "stepDownload": "Download",
+      "remove": "Rimuovi {{name}}",
+      "displayName": "Nome visualizzato",
+      "optional": "(facoltativo)",
+      "displayNamePlaceholder": "es. Personale, Lavoro",
+      "serverUrl": "URL del server",
+      "username": "Nome utente",
+      "password": "Password",
+      "connectionSuccessful": "Connessione riuscita",
+      "diagnose": "Diagnostica la connessione",
+      "testing": "Verifica in corso…",
+      "testConnection": "Verifica connessione",
+      "addAccount": "Aggiungi account",
+      "subscriptionsHeading": "Abbonamenti calendario (.ics)",
+      "name": "Nome",
+      "namePlaceholder": "es. Festività",
+      "calendarUrl": "URL del calendario",
+      "refreshInterval": "Intervallo di aggiornamento (minuti)",
+      "proxyOptional": "URL del proxy (facoltativo)",
+      "proxyHint": "Necessario solo se l’host del calendario non consente richieste cross-origin.",
+      "addSubscription": "Aggiungi abbonamento",
+      "next": "Avanti →",
+      "masterPassword": "Password principale",
+      "masterPlaceholder": "Scegli una password sicura",
+      "masterHint": "Questa password servirà a sbloccare i tuoi calendari in Calino.",
+      "confirmPassword": "Conferma password",
+      "confirmPlaceholder": "Digitala di nuovo",
+      "back": "← Indietro",
+      "encrypting": "Cifratura in corso…",
+      "generate": "Genera configurazione",
+      "nextSteps": "Passaggi successivi",
+      "step1": "Metti <code>calino.config.json</code> nella radice del progetto",
+      "step2": "Ricompila: <code>docker compose up -d --build</code>",
+      "step3": "Apri Calino e inserisci la password principale",
+      "rebuildWarning": "⚠️ La configurazione viene incorporata nel bundle JS durante la build. Devi ricompilare perché le modifiche abbiano effetto.",
+      "startOver": "← Ricomincia",
+      "downloadAgain": "Scarica di nuovo",
+      "done": "Fatto →",
+      "passwordsMismatch": "Le password non coincidono.",
+      "passwordTooShort": "La password deve contenere almeno 6 caratteri.",
+      "encryptionFailed": "Cifratura non riuscita."
+    },
+    "categories": {
+      "unknown": "Sconosciuto",
+      "eventCount_one": "{{count}} evento",
+      "eventCount_other": "{{count}} eventi",
+      "matches_one": "{{count}} corrispondenza",
+      "matches_other": "{{count}} corrispondenze",
+      "uncategorized": "({{count}} senza categoria)",
+      "inCalendar": "{{count}} in {{name}}",
+      "willMatch_one": "Corrisponderà a {{count}} evento",
+      "willMatch_other": "Corrisponderà a {{count}} eventi",
+      "currentlyUncategorized": "({{count}} attualmente senza categoria)"
+    },
+    "data": {
+      "untitledEvent": "Evento senza titolo",
+      "start": "Inizio: {{date}}",
+      "end": "Fine: {{date}}",
+      "fix": "Correggi",
+      "delete": "Elimina",
+      "fixAll": "Correggi tutto ({{count}})",
+      "deleteAll": "Elimina tutto",
+      "duplicateIntro": "Questi eventi condividono lo stesso ID univoco (UID) sul tuo server ma sono archiviati come elementi separati. Calino può mostrarne solo uno per gruppo: gli altri vengono nascosti per mantenere stabile il calendario. Di solito deriva da una copia in blocco fatta in un’altra app. Per risolvere, assegna a ogni evento un UID univoco sul tuo server e poi sincronizza di nuovo.",
+      "duplicateUid": "UID duplicato: {{uid}}",
+      "kept": "Mantenuto",
+      "hidden": "Nascosto",
+      "deleting": "Eliminazione…",
+      "dismiss": "Ignora"
+    }
   }
 }

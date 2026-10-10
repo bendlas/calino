@@ -6,6 +6,7 @@ import type {
   UpdateCalendarOptions,
   CalDAVAuthMode,
 } from '../types'
+import type { CalendarBackend } from './CalendarBackend'
 import { basicAuthHeader } from './basicAuth'
 import { createUuid } from '@/lib/uuid'
 import { decodeBase64 } from '@/lib/settingsSync'
@@ -236,7 +237,7 @@ export function prefixUrlWithProxy(url: string, proxyBase: string): string {
   return buildProxyUrl(proxyBase, url)
 }
 
-function createProxyFetch(proxyUrl: string): typeof fetch {
+export function createProxyFetch(proxyUrl: string): typeof fetch {
   return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     let url: string
     if (typeof input === 'string') {
@@ -253,7 +254,10 @@ function createProxyFetch(proxyUrl: string): typeof fetch {
 
 // Takes the full `fetch` input type, not just `string | URL`: tsdav types its
 // `fetch` option as `typeof fetch`, so a narrower parameter is not assignable.
-async function fetchWithTimeout(url: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+export async function fetchWithTimeout(
+  url: RequestInfo | URL,
+  init?: RequestInit
+): Promise<Response> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), NETWORK_TIMEOUT_MS)
   try {
@@ -285,7 +289,8 @@ export function unwrapFetchEvents(
   return result
 }
 
-export class CalDAVClient {
+export class CalDAVClient implements CalendarBackend {
+  readonly protocol = 'caldav' as const
   private client: Awaited<ReturnType<typeof createDAVClient>> | null = null
   // Cache of raw DAV calendar objects from tsdav, keyed by URL matching.
   // Populated on the first fetchCalendars() call and reused by findCalendarByUrl().

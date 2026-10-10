@@ -75,6 +75,8 @@ interface EventCardProps {
   clickDisabled?: boolean
   /** Keep a spanning pill's continuation visually label-free after its first day. */
   hideFragmentTitle?: boolean
+  /** Month view: day cells the title may overflow across before it is clipped. */
+  fragmentSpanDays?: number
   /** Subtask disclosure state supplied by the containing task surface. */
   taskHasSubtasks?: boolean
   taskSubtasksCollapsed?: boolean
@@ -98,6 +100,7 @@ export const EventCard = React.memo(function EventCard({
   hideDueTime = false,
   clickDisabled = false,
   hideFragmentTitle = false,
+  fragmentSpanDays,
   taskHasSubtasks = false,
   taskSubtasksCollapsed = false,
   taskSubtaskCount,
@@ -335,6 +338,11 @@ export const EventCard = React.memo(function EventCard({
   const isFragmentFirst = event.isFragment && event.isFirstFragment
   const isFragmentLast = event.isFragment && event.isLastFragment
   const hasFragmentTitle = event.isFragment && !hideFragmentTitle
+  const titleStyle = hideFragmentTitle
+    ? ({ visibility: 'hidden' } as const)
+    : fragmentSpanDays
+      ? ({ '--fragment-span': fragmentSpanDays } as React.CSSProperties)
+      : undefined
 
   const handleClick = (e: React.MouseEvent): void => {
     let moved = false
@@ -541,7 +549,7 @@ export const EventCard = React.memo(function EventCard({
                     : '',
                 })
             : event.isAllDay
-              ? t('modals.eventCard.allDayAriaLabel', { title: event.title })
+              ? t('modals.eventCard.allDayAriaLabel', { title: event.title, subtask: '' })
               : t('modals.eventCard.timedAriaLabel', {
                   title: event.title,
                   start: formatEventTime(event.start, event.timezone, timeFormat),
@@ -662,7 +670,7 @@ export const EventCard = React.memo(function EventCard({
               <div
                 className={styles.title}
                 title={event.title}
-                style={hideFragmentTitle ? { visibility: 'hidden' } : undefined}
+                style={titleStyle}
                 aria-hidden={hideFragmentTitle || undefined}
               >
                 {event.title}
@@ -708,7 +716,7 @@ export const EventCard = React.memo(function EventCard({
               <div
                 className={styles.title}
                 title={event.title}
-                style={hideFragmentTitle ? { visibility: 'hidden' } : undefined}
+                style={titleStyle}
                 aria-hidden={hideFragmentTitle || undefined}
               >
                 {event.title}
@@ -736,7 +744,14 @@ export const EventCard = React.memo(function EventCard({
                 if (!timeText && !tzText && !locText) return null
                 return (
                   <div className={styles.meta}>
-                    {timeText && <span className={styles.time}>{timeText}</span>}
+                    {timeText && (
+                      <span
+                        className={styles.time}
+                        style={{ '--time-chars': timeText.length } as React.CSSProperties}
+                      >
+                        {timeText}
+                      </span>
+                    )}
                     {tzText && (
                       <span
                         className={styles.tzInline}
@@ -974,6 +989,7 @@ function arePropsEqual(prev: EventCardProps, next: EventCardProps): boolean {
     prev.hideDueTime !== next.hideDueTime ||
     prev.clickDisabled !== next.clickDisabled ||
     prev.hideFragmentTitle !== next.hideFragmentTitle ||
+    prev.fragmentSpanDays !== next.fragmentSpanDays ||
     prev.taskHasSubtasks !== next.taskHasSubtasks ||
     prev.taskSubtasksCollapsed !== next.taskSubtasksCollapsed ||
     prev.taskSubtaskCount !== next.taskSubtaskCount ||

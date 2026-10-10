@@ -50,7 +50,10 @@ export async function scheduleTestReminder(): Promise<void> {
 export async function registerReminderActions(): Promise<void> {
   await LocalNotifications.registerActionTypes({
     types: [
-      { id: REMINDER_ACTION_TYPE, actions: [{ id: SNOOZE_ACTION_ID, title: i18n.t('errors:reminder.snooze5m') }] },
+      {
+        id: REMINDER_ACTION_TYPE,
+        actions: [{ id: SNOOZE_ACTION_ID, title: i18n.t('errors:reminder.snooze5m') }],
+      },
     ],
   })
 }
@@ -74,7 +77,10 @@ export function reminderInstant(event: CalendarEvent, minutesBefore: number): Da
  */
 export function reminderBodyTime(event: CalendarEvent): string {
   if (event.isAllDay) return i18n.t('errors:reminder.allDay')
-  return formatTime(toEventInstant(event.start, event.timezone), useSettingsStore.getState().timeFormat)
+  return formatTime(
+    toEventInstant(event.start, event.timezone),
+    useSettingsStore.getState().timeFormat
+  )
 }
 
 export async function reconcileNativeReminders(events: CalendarEvent[]): Promise<void> {
@@ -124,6 +130,52 @@ export async function cancelAllNativeReminders(): Promise<void> {
   })
 }
 
+const OVERDUE_BADGE_NOTIFICATION_ID = hashToInt32('overdue-tasks-badge')
+const OVERDUE_BADGE_CHANNEL_ID = 'overdue-tasks'
+
+/**
+ * Android has no API for an app-icon badge: the launcher shows a dot (or a
+ * count, on launchers that have one) for as long as the app has a notification
+ * up. So the "overdue task badge" is a quiet, standing notification — its own
+ * low-importance channel keeps it silent, and a fixed id means posting again
+ * updates it in place rather than stacking.
+ *
+ * `count <= 0` takes it down. It is not tied to a particular task, so tapping
+ * it simply opens Calino.
+ */
+export async function setNativeOverdueBadge(count: number): Promise<void> {
+  if (count <= 0) {
+    await clearNativeOverdueBadge()
+    return
+  }
+  await LocalNotifications.createChannel({
+    id: OVERDUE_BADGE_CHANNEL_ID,
+    name: i18n.t('errors:reminder.overdueChannelName'),
+    importance: 2,
+  })
+  await LocalNotifications.schedule({
+    notifications: [
+      {
+        id: OVERDUE_BADGE_NOTIFICATION_ID,
+        title: i18n.t('errors:reminder.overdueTasks', { count }),
+        body: i18n.t('errors:reminder.overdueTasksBody'),
+        channelId: OVERDUE_BADGE_CHANNEL_ID,
+        badge: count,
+        // Tapping opens the app; the notification should keep reflecting the
+        // count rather than vanish, so only a swipe removes it.
+        autoCancel: false,
+      },
+    ],
+  })
+}
+
+export async function clearNativeOverdueBadge(): Promise<void> {
+  await LocalNotifications.removeDeliveredNotifications({
+    // The plugin's type demands title/body, but only the id is used to cancel.
+    notifications: [{ id: OVERDUE_BADGE_NOTIFICATION_ID, title: '', body: '' }],
+  })
+}
+
 export function listenForReminderActions(): () => void {
   const listenerPromise = LocalNotifications.addListener(
     'localNotificationActionPerformed',
@@ -141,7 +193,7 @@ export function listenForReminderActions(): () => void {
         notifications: [
           {
             id: hashToInt32(`snooze:${extra.eventId}:${Date.now()}`),
-            title: action.notification.title ?? 'Reminder',
+            title: action.notification.title ?? i18n.t('calendar:ui.reminderTitle'),
             body: action.notification.body ?? '',
             schedule: { at: addMinutes(new Date(), 5) },
             actionTypeId: REMINDER_ACTION_TYPE,

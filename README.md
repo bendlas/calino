@@ -14,7 +14,7 @@
 
 </div>
 
-**Calino is a local-first, browser-based calendar client that connects to your calendar services.** No Calino account is required: the app is a static page, stores its working data locally, and syncs with the CalDAV/CardDAV servers you configure. Optional webcal feeds, CORS proxies, AI photo extraction, map links, and hosted fonts are separate network integrations.
+**Calino is a local-first, browser-based calendar client that connects to your calendar services.** No Calino account is required: the app is a static page, stores its working data locally, and syncs with the CalDAV/CardDAV or JMAP servers you configure. Optional webcal feeds, CORS proxies, AI photo extraction, map links, and hosted fonts are separate network integrations.
 
 If you've been looking for a beautiful, modern browser-based CalDAV calendar that doesn't come as part of a bloated suite, Calino has you covered.
 
@@ -25,9 +25,15 @@ If you've been looking for a beautiful, modern browser-based CalDAV calendar tha
 <img width="1613" height="942" alt="image" src="https://github.com/user-attachments/assets/832356b1-0b20-4161-8083-06ff71934a16" />
 (more screenshots at the bottom)
 
-### CalDAV Proxy
+### JMAP
 
-Due to the browser-based nature of Calino, a web CalDAV/CardDAV server must allow requests from your Calino origin with CORS headers. If that's not an option, you can use a proxy URL during setup; Calino provides `https://proxy.calino.io` as a convenience.
+Calino also supports [JMAP](https://jmap.io/) for calendars and contacts. There is nothing to pick: type your server and credentials, and Calino detects whether it speaks JMAP or CalDAV (servers that offer both, such as Stalwart, use JMAP). Calendars, events, recurrence, reminders, attendees and invitations, free/busy, contacts, offline editing and live updates work the same as with CalDAV. Tasks and journals need a JMAP tasks capability, which Stalwart doesn't offer yet, so those stay CalDAV-only there. If you'd rather use CalDAV on a server that offers both, tick **Use CalDAV** under *Connection settings*. JMAP Calendars is still an Internet-Draft; Calino is verified against Stalwart, and other servers may differ. Details, limits and how to test are in [`docs/JMAP.md`](./docs/JMAP.md).
+
+### CORS and proxy
+
+Due to the browser-based nature of Calino, a web CalDAV/CardDAV/JMAP server must allow requests from your Calino origin with CORS headers. If that's not an option, you can use a proxy URL during setup; Calino provides `https://proxy.calino.io` as a convenience.
+
+With a proxy, requests pass through the proxy operator, so use your own proxy or configure CORS directly when that matters. The hosted proxy sees connection metadata and request URLs, but is designed not to log credentials or calendar bodies. See [`docs/CORS_PROXY.md`](./docs/CORS_PROXY.md) for the hosted proxy's limits and self-hosting options.
 
 Calino also supports a **browser-session** auth mode for CalDAV: it sends no Basic `Authorization` header and asks the browser to include eligible cookies. This mode only reuses cookies the browser is allowed to attach; it does **not** implicitly reuse OAuth flows on its own. Browser-session mode requires a direct DAV connection (no proxy), because cookies apply to the proxy origin instead of your DAV origin.
 
@@ -37,22 +43,13 @@ When the session expires, a DAV request is answered with a redirect to the gatew
 
 ### DAV behind an authentication gateway
 
-In the account form, add the headers required by your gateway. The self-hosted `/setup` generator has the same fields and encrypts each value in the generated `calino.config.json`.
-
-| Gateway | Header names to configure |
-| --- | --- |
-| Pangolin | `P-Access-Token-Id`, `P-Access-Token` |
-| Cloudflare Access | `CF-Access-Client-Id`, `CF-Access-Client-Secret` |
-
-Configure the gateway to answer cross-origin `OPTIONS` preflight requests from your Calino origin **without requiring the access-token headers**. The browser's preflight contains the header *names*, not their secret values. Its response must include those names in `Access-Control-Allow-Headers`, allow DAV methods such as `PROPFIND` and `REPORT`, and provide the usual CORS origin response. Calino then sends the configured values on the actual DAV requests. If preflight is blocked, browser JavaScript cannot work around it.
-
-Use the final HTTPS DAV URL, including a trailing slash if the server requires one. Custom headers work with direct DAV connections only; remove the optional CORS proxy URL. Requests carrying custom headers stop on redirects, and Calino refuses to send them to a different origin. Values are masked in the UI and stored with account credentials using the app's existing local obfuscation, which is not strong protection against someone with access to the browser storage and app bundle.
-
-With a proxy, requests pass through the proxy operator, so use your own proxy or configure CORS directly when that matters. The hosted proxy sees connection metadata and request URLs, but is designed not to log credentials or calendar bodies. See [`docs/CORS_PROXY.md`](./docs/CORS_PROXY.md) for the hosted proxy's limits and self-hosting options.
+Using Pangolin, Cloudflare Access, or a similar gateway in front of your server? See [`docs/AUTH_GATEWAY.md`](./docs/AUTH_GATEWAY.md) for the headers and CORS preflight setup.
 
 ## Android app
 
-Like Calino in your browser? A native Android app is available with OS-level reminders, background calendar mirroring, and optional BYOK AI photo extraction. The AI provider receives the image and prompt when you choose to use that feature. Find the latest APK in the [GitHub Releases page](https://github.com/Ivan-Malinovski/calino/releases).
+Like Calino in your browser? There's a native, standalone Android app too: [Ivan-Malinovski/calino-android](https://github.com/Ivan-Malinovski/calino-android). It's built from scratch in Kotlin and Jetpack Compose, with no WebView.
+
+This repository also builds a Capacitor-wrapped Android app with OS-level reminders, background calendar mirroring, and optional BYOK AI photo extraction. The AI provider receives the image and prompt when you choose to use that feature. Find the latest APK in the [GitHub Releases page](https://github.com/Ivan-Malinovski/calino/releases).
 
 ---
 
@@ -71,6 +68,7 @@ I have made it as close as possible, as to what I envision the perfect CalDAV no
 - Type naturally: *"coffee with friends on wednesday, at 12-18"* → creates a 4-hour event on that Wednesday
 - Press `Cmd/Ctrl+K` for the command palette — navigate, create events, sync, search, settings from the same textbox
 - Smart detection: start typing and NLP parses dates, times, and durations
+- **Experimental WebMCP** — opt-in browser AI tools for event search and preparing drafts for review. See [browser AI access](./docs/WEBMCP.md).
 
 ### Tasks (VTODO) + Journals (VJOURNAL)
 - Full VTODO support with due dates, priorities, and completion status
@@ -133,8 +131,8 @@ For notification reminders to actually fire reliably, some phone makers (Xiaomi/
 
 ### Limitations
 - No enterprise features
-- No server-side calendar sharing or invitation scheduling
-- Attendee details can be stored in iCalendar data and emailed via a local `mailto:` invite, but Calino is not an invitation service
+- No server-side calendar sharing
+- Invitations: over CalDAV, attendee details are stored in iCalendar data and can be emailed via a local `mailto:` invite. On JMAP accounts Calino asks the server to send invitations, updates and cancellations (verified between local Stalwart users; delivery to outside addresses depends on the server's mail setup). Calino has no screen for incoming invitations or replying to them yet
 
 ---
 
@@ -239,11 +237,12 @@ yourcaldav.server.com {
 
 **Service Worker / Offline Mode:** The service worker is disabled by default. To enable offline support, build with `CALINO_ENABLE_SW=true` and make sure the final host serves `/sw.js` with `Service-Worker-Allowed: /`. The service worker caches the app shell; CalDAV synchronization still needs network access. See [`docs/DOCKER.md`](./docs/DOCKER.md) for Docker setup.
 
-### Supported CalDAV Servers
+### Supported Servers
 - Baikal
 - Nextcloud Calendar
 - Radicale
-- Any RFC 4791 compliant server
+- Any RFC 4791 compliant CalDAV server
+- JMAP: Stalwart (tested); any server that implements JMAP Calendars should work, but the specification is still a draft
 
 ### CORS Headers
 
@@ -257,6 +256,8 @@ Access-Control-Expose-Headers: ETag, DAV, Allow
 ```
 
 > **Tip:** If something isn't working, don't guess at which header is missing — open **Settings → Sync**, pick your account and press **Diagnose**. Calino probes the server check by check and tells you what to change. Note that browsers hide a server's `Access-Control-Allow-*` headers from JavaScript, so some verdicts are marked "inferred": they're deduced from how the server behaved rather than read off the wire. Exposing `DAV` and `Allow` (above) lets Calino read those two directly.
+
+> **JMAP servers** need the same headers on their API endpoints, not just `/.well-known/jmap`; Stalwart answers CORS only on the latter unless **Use permissive CORS** is enabled (see [`docs/JMAP_TESTING.md`](./docs/JMAP_TESTING.md)). Allow `POST`, expose `WWW-Authenticate` and `Retry-After` as well, and note that live updates use `EventSource`, which can't send an `Authorization` header cross-origin; Calino reads the event stream with `fetch` instead.
 
 > **Note:** `MKCOL`, `COPY`, and `MOVE` are required for settings sync (creating/moving the Calino settings collection). Omitting them still lets calendars load, but settings sync will fail.
 
@@ -300,7 +301,7 @@ restrictions reduce open-relay and SSRF risk; see [`docs/CORS_PROXY.md`](./docs/
 
 ## Tech Stack
 
-React 19 + TypeScript + Vite, Zustand v5, tsdav (CalDAV), CardDAV, date-fns,
+React 19 + TypeScript + Vite, Zustand v5, tsdav (CalDAV), CardDAV, JMAP (JSCalendar/JSContact), date-fns,
 chrono-node, @dnd-kit, framer-motion, Fuse.js, ical.js, Vitest, and Playwright.
 
 ---
