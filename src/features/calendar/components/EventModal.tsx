@@ -3,7 +3,14 @@ import { useState, useMemo, useEffect, useRef, useCallback, useId } from 'react'
 import { motion } from 'framer-motion'
 import { format, parseISO } from 'date-fns'
 import { useTranslation } from 'react-i18next'
-import { pad2, toEventInstant, deviceTimezone, formatDisplayDate } from '@/lib/datetime'
+import { pad2, toEventInstant, formatDisplayDate } from '@/lib/datetime'
+import {
+  formatHome,
+  homeDayKey,
+  homeTimezone,
+  parseHomeWall,
+  useHomeTimezone,
+} from '@/lib/homeTimezone'
 import { createUuid } from '@/lib/uuid'
 import { calendarMutesReminders, useCalendarStore } from '@/store/calendarStore'
 import { useCalDAV } from '@/features/caldav/hooks/useCalDAV'
@@ -43,6 +50,7 @@ import { useSettingsStore } from '@/store/settingsStore'
 import { exportSingleEventIcs } from '@/lib/icsExport'
 import { buildMailtoUri } from '@/lib/mailtoInvite'
 import { getDirectSubtasks, getVisibleTaskDescendants } from '@/lib/taskTree'
+import { nextSubtaskSortOrder } from '@/lib/taskSortOrder'
 import { completeTaskAndSync } from '@/lib/taskCompletion'
 import { useTaskCollapse } from '../hooks/useTaskCollapse'
 
@@ -69,6 +77,7 @@ async function runNetworkWrites(writes: Array<() => Promise<void>>): Promise<voi
 
 export function EventModal(): JSX.Element | null {
   const { t } = useTranslation(['calendar', 'common'])
+  useHomeTimezone()
   const isModalOpen = useCalendarStore((state) => state.isModalOpen)
   const selectedEventId = useCalendarStore((state) => state.selectedEventId)
   const selectedDate = useCalendarStore((state) => state.selectedDate)
@@ -608,10 +617,10 @@ export function EventModal(): JSX.Element | null {
         const taskDueDate =
           occurrenceKey?.split('T')[0] ||
           existingEvent.dueDate?.split('T')[0] ||
-          format(toEventInstant(existingEvent.start, existingEvent.timezone), 'yyyy-MM-dd')
+          homeDayKey(toEventInstant(existingEvent.start, existingEvent.timezone))
         setDueDate(taskDueDate)
         seededDueDateRef.current = taskDueDate
-        const taskTime = format(
+        const taskTime = formatHome(
           toEventInstant(existingEvent.start, existingEvent.timezone),
           'HH:mm'
         )
@@ -631,7 +640,7 @@ export function EventModal(): JSX.Element | null {
         const newTaskDueDate =
           requestedParent?.dueDate?.split('T')[0] ||
           selectedDate?.split('T')[0] ||
-          format(new Date(), 'yyyy-MM-dd')
+          homeDayKey(new Date())
         setDueDate(newTaskDueDate)
         seededDueDateRef.current = newTaskDueDate
         // A time extracted from the photo is a real due time worth keeping;
@@ -905,11 +914,11 @@ export function EventModal(): JSX.Element | null {
 
     const localStart = isAllDay ? `${startDate}T00:00:00` : `${startDate}T${startTime}:00`
     const localEnd = isAllDay ? `${endDate}T23:59:59` : `${endDate}T${endTime}:00`
-    const existingStart = format(
+    const existingStart = formatHome(
       toEventInstant(existingEventForMode.start, existingEventForMode.timezone),
       "yyyy-MM-dd'T'HH:mm:ss"
     )
-    const existingEnd = format(
+    const existingEnd = formatHome(
       toEventInstant(existingEventForMode.end, existingEventForMode.timezone),
       "yyyy-MM-dd'T'HH:mm:ss"
     )
@@ -990,8 +999,8 @@ export function EventModal(): JSX.Element | null {
     // trip the endMs <= startMs check below and permanently disable Save.
     if (isTaskMode) return false
     if (!isAllDay) {
-      const startMs = new Date(`${startDate}T${startTime}:00`).getTime()
-      const endMs = new Date(`${endDate}T${endTime}:00`).getTime()
+      const startMs = parseHomeWall(`${startDate}T${startTime}:00`).getTime()
+      const endMs = parseHomeWall(`${endDate}T${endTime}:00`).getTime()
       return endMs <= startMs
     }
     return endDate < startDate
@@ -1101,15 +1110,15 @@ export function EventModal(): JSX.Element | null {
       // throws away the zone the user picked. The instant is right, but an
       // RRULE attached to it is evaluated on *UTC* weekdays — for a 23:00 start
       // west of UTC that is the next day, so "every Mon–Fri" ran Sun–Thu. Stamp
-      // the device zone and store the wall clock instead, the same shape a
+      // the home zone and store the wall clock instead, the same shape a
       // synced TZID item has: the recurrence then repeats on the weekdays the
       // user chose, at the wall time they chose, and it exports as
       // `DTSTART;TZID=…` so other CalDAV clients agree with us.
       //
       // Only stamped when the item does not already carry a zone. An item
       // synced with a foreign TZID keeps today's behaviour: the form shows its
-      // times in the *device* zone, so writing them back as a wall clock would
-      // silently re-read them in the foreign zone. Those stay UTC instants,
+      // times in the home zone, so writing them back as a wall clock would
+      // silently re-read them in the foreign zone. Those stay real instants,
       // which createIcalDateTime converts to the event zone on write.
       const editedStoredEvent = isEditing
         ? events.find((event) => event.id === selectedEventId) ||
@@ -1119,10 +1128,10 @@ export function EventModal(): JSX.Element | null {
       // written `isAllDay` resolves to below.
       const effectiveAllDay = isTaskMode ? dueAllDay : isAllDay
       const stampDeviceZone = !effectiveAllDay && !editedStoredEvent?.timezone
-      const eventTimezone = stampDeviceZone ? deviceTimezone() : editedStoredEvent?.timezone
+      const eventTimezone = stampDeviceZone ? homeTimezone() : editedStoredEvent?.timezone
       /** A timed wall clock in the form's zone, stored in the item's own frame. */
       const storeTimed = (localWall: string): string =>
-        stampDeviceZone ? localWall : new Date(localWall).toISOString()
+        stampDeviceZone ? localWall : parseHomeWall(localWall).toISOString()
 
       const startDateTime = isAllDay ? `${startDate}T00:00:00` : storeTimed(localStart)
       const endDateTime = isAllDay ? `${endDate}T00:00:00` : storeTimed(localEnd)
@@ -1177,7 +1186,9 @@ export function EventModal(): JSX.Element | null {
           ? getOccurrenceStart(selectedStoredEvent, selectedEventId, originalEventId)
           : undefined
         const occDateStr = occurrenceKey?.split('T')[0] || startDate
-        const durationMs = new Date(endDateTime).getTime() - new Date(startDateTime).getTime()
+        const durationMs = stampDeviceZone
+          ? parseHomeWall(endDateTime).getTime() - parseHomeWall(startDateTime).getTime()
+          : new Date(endDateTime).getTime() - new Date(startDateTime).getTime()
         const occStartDateTime = isTaskMode
           ? `${occDateStr}T${taskTime}`
           : isAllDay
@@ -1197,12 +1208,12 @@ export function EventModal(): JSX.Element | null {
           occEndDateTime = `${endD.toISOString().split('T')[0]}T00:00:00`
         } else if (stampDeviceZone) {
           // Wall-clock frame: add the duration to the instant, then read it
-          // back as a device-zone wall clock so a DST transition inside the
+          // back as a home-zone wall clock so a DST transition inside the
           // occurrence does not shift the stored end by an hour.
           const occEnd = new Date(
             toEventInstant(occStartDateTime, eventTimezone).getTime() + durationMs
           )
-          occEndDateTime = format(occEnd, "yyyy-MM-dd'T'HH:mm:ss")
+          occEndDateTime = formatHome(occEnd, "yyyy-MM-dd'T'HH:mm:ss")
         } else {
           occEndDateTime = new Date(new Date(occStartDateTime).getTime() + durationMs).toISOString()
         }
@@ -1353,6 +1364,8 @@ export function EventModal(): JSX.Element | null {
             completed: isTaskMode ? completed : undefined,
             priority: isTaskMode ? priority : undefined,
             parentTaskId: isTaskMode ? parentTaskId : undefined,
+            // The split-off series keeps the position the old one had.
+            sortOrder: isTaskMode ? masterEvent.sortOrder : undefined,
             travelDuration: isTaskMode ? undefined : travelDuration,
             reminders: isTaskMode ? undefined : reminders,
             transparency: isTaskMode ? undefined : transparency,
@@ -1547,6 +1560,11 @@ export function EventModal(): JSX.Element | null {
           completed: isTaskMode ? completed : undefined,
           priority: isTaskMode ? priority : undefined,
           parentTaskId: isTaskMode ? parentTaskId : undefined,
+          // A new subtask lands after its ordered siblings.
+          sortOrder:
+            isTaskMode && parentTaskId
+              ? nextSubtaskSortOrder(getDirectSubtasks(events, parentTaskId))
+              : undefined,
           reminders: isTaskMode ? undefined : reminders,
           transparency: isTaskMode ? undefined : transparency,
           categories: selectedCategories,

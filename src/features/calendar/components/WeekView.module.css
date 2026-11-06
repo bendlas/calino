@@ -96,9 +96,34 @@
   text-align: center;
 }
 
+.homeZoneLabel {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 2px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-3, #a39d93);
+}
+
+.weekNumberStack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+}
+
 .timeColumn {
   display: flex;
   flex-direction: column;
+  /* .body scrolls, so a stretched column is only as tall as the visible area:
+     its right border ended there and the hours scrolled into view had no line.
+     Sizing to the 24 hour cells keeps the border running the whole day. */
+  align-self: flex-start;
   border-right: 1px solid var(--line, rgba(var(--ink-raw), 0.09));
   min-width: var(--time-gutter-width, 45px);
   max-width: var(--time-gutter-width, 45px);

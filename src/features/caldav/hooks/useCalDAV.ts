@@ -1,7 +1,13 @@
 import { useState, useCallback, useContext, useEffect, useMemo } from 'react'
 import { addDays } from 'date-fns'
 import type { CalendarEvent } from '@/types'
-import { showToast, showBrokenEventsNotification, showDuplicateUidNotification } from '@/lib/toast'
+import {
+  showToast,
+  showBrokenEventsNotification,
+  showDuplicateUidNotification,
+  showUnreadableResourcesNotification,
+} from '@/lib/toast'
+import { hrefKey } from '@/lib/hrefKey'
 import i18n from '@/lib/i18n'
 import type {
   CalDAVAccount,
@@ -93,6 +99,13 @@ const inFlightDeletes = new Set<string>()
 // the same account each reconcile against stale state. Callers get the existing
 // promise instead of starting a second run.
 const inFlightSyncs = new Map<string, Promise<void>>()
+
+/**
+ * Resources already reported as unreadable, as `calendarId|hrefKey`. They are
+ * retried every cycle, so without this the same toast would repeat on each sync
+ * until the server-side file is fixed.
+ */
+const reportedUnreadable = new Set<string>()
 
 const MAX_RETRIES = 10
 
@@ -264,6 +277,12 @@ interface CollectParsedResult {
    * still present remotely (data loss).
    */
   hadParseFailures: boolean
+  /**
+   * The resources behind `hadParseFailures`. Unreadable is a property of one
+   * resource, so only local events stored at one of these hrefs are in doubt;
+   * every other event can still be reconciled against the listing (#228).
+   */
+  failedHrefs: string[]
 }
 
 async function collectParsedWithHref(
@@ -272,9 +291,11 @@ async function collectParsedWithHref(
 ): Promise<CollectParsedResult> {
   const result: ParsedWithHref[] = []
   let hadParseFailures = false
+  const failedHrefs: string[] = []
   for (const eventData of fetchedEvents) {
     if (!eventData.data || !eventData.data.trim()) {
       hadParseFailures = true
+      failedHrefs.push(eventData.url)
       continue
     }
 
@@ -291,7 +312,10 @@ async function collectParsedWithHref(
     await putRawIcs(eventData.url, calendarId, eventData.data, eventData.etag).catch(() => {})
 
     const parsed = await parseICALDataAsyncWithStatus(eventData.data, calendarId)
-    if (parsed.hadParseFailures) hadParseFailures = true
+    if (parsed.hadParseFailures) {
+      hadParseFailures = true
+      failedHrefs.push(eventData.url)
+    }
     for (let parsedEvent of parsed.events) {
       // Cache inline attachments in IndexedDB, keep only metadata in the store
       if (parsedEvent.attachments && parsedEvent.attachments.length > 0) {
@@ -317,32 +341,12 @@ async function collectParsedWithHref(
       })
     }
   }
-  return { items: result, hadParseFailures }
+  return { items: result, hadParseFailures, failedHrefs }
 }
 
-/**
- * Compare two resource hrefs for identity.
- *
- * Stored `resourceHref` values come from tsdav's `obj.url`; sync-collection
- * hrefs are resolved against the collection URL. The same resource can
- * therefore arrive as an absolute URL from one path and a server-relative one
- * from the other, and servers are inconsistent about a trailing slash. Compare
- * on the path only, and keep percent-encoding as-is — decoding would fold
- * `%2F` into a path separator.
- */
 /** Human-readable identifier for sync logging. */
 function calendarLabel(cal: { name?: string; id: string }): string {
   return cal.name || cal.id
-}
-
-function hrefKey(href: string): string {
-  let path = href
-  try {
-    path = new URL(href, 'http://x.invalid').pathname
-  } catch {
-    // Not URL-shaped; fall through and compare the raw string.
-  }
-  return path.replace(/\/+$/, '')
 }
 
 /**
@@ -1513,6 +1517,8 @@ export function useCalDAVInstance(): UseCalDAVReturn {
       // Errors from individual calendars, accumulated so one collection
       // failing never silences the others.
       const syncErrors: string[] = []
+      // Resources that could not be read this cycle, keyed for the dedupe set.
+      const unreadableThisSync: string[] = []
 
       try {
         const credential = await getCredentialById(account.credentialId)
@@ -1784,10 +1790,12 @@ export function useCalDAVInstance(): UseCalDAVReturn {
             const pendingUpserts: CalendarEvent[] = []
             const pendingDeleteIds: string[] = []
 
-            const { items: parsedWithHref, hadParseFailures } = await collectParsedWithHref(
-              fetchedEvents,
-              cal.id
-            )
+            const {
+              items: parsedWithHref,
+              hadParseFailures,
+              failedHrefs,
+            } = await collectParsedWithHref(fetchedEvents, cal.id)
+            for (const href of failedHrefs) unreadableThisSync.push(`${cal.id}|${hrefKey(href)}`)
 
             // Detect independent events illegally sharing a UID across resources.
             // Keep one deterministically; record the rest as data issues (#22).
@@ -1903,12 +1911,15 @@ export function useCalDAVInstance(): UseCalDAVReturn {
 
             // The complete collection listing makes absence an authoritative
             // remote deletion. Never remove a local change waiting to be pushed.
-            // Skip deletion entirely if any resource in this fetch failed to
-            // parse: that resource's UID is unknown to us, so we cannot tell
-            // whether the local event it corresponds to is genuinely gone or
-            // just temporarily unreadable. Treating the listing as authoritative
-            // in that case could delete an event that still exists on the
-            // server. Adds/updates from resources that DID parse are unaffected.
+            //
+            // A resource that failed to parse has a UID we do not know, so a
+            // local event stored at that href may well still exist remotely:
+            // those are left alone. That is a per-resource doubt, though — it
+            // says nothing about events stored elsewhere, which are still
+            // reconciled normally, so one odd event written by another client
+            // costs only itself (#228). An event with no recorded href cannot
+            // be ruled out of the unreadable set, so it is spared while
+            // anything is unreadable.
             //
             // In incremental mode the listing is deliberately partial, so
             // absence is only authoritative for the resources the server
@@ -1916,12 +1927,20 @@ export function useCalDAVInstance(): UseCalDAVReturn {
             // back for it) and a changed resource that no longer contains a
             // component it used to — a deleted recurrence override, say.
             // Every other local event is simply not covered by this REPORT.
-            if (!hadParseFailures && !hadComponentFailures) {
-              const deletionCandidates = touchedHrefs
-                ? calendarEvents.filter(
-                    (e) => e.resourceHref && touchedHrefs.has(hrefKey(e.resourceHref))
-                  )
-                : calendarEvents
+            //
+            // A failed component REPORT is different: the listing itself is
+            // incomplete, so nothing in it can be trusted as evidence of absence.
+            if (!hadComponentFailures) {
+              const unreadableHrefs = new Set(failedHrefs.map(hrefKey))
+              const deletionCandidates = (
+                touchedHrefs
+                  ? calendarEvents.filter(
+                      (e) => e.resourceHref && touchedHrefs.has(hrefKey(e.resourceHref))
+                    )
+                  : calendarEvents
+              ).filter((e) =>
+                e.resourceHref ? !unreadableHrefs.has(hrefKey(e.resourceHref)) : !hadParseFailures
+              )
               for (const localEvent of deletionCandidates) {
                 if (
                   !serverEventIds.has(localEvent.id) &&
@@ -1939,18 +1958,21 @@ export function useCalDAVInstance(): UseCalDAVReturn {
                   }
                 }
               }
+            }
+            if (!hadParseFailures && !hadComponentFailures) {
               commitCursors(cal.id, nextToken, fresh.ctag)
             } else {
-              // Reconciliation is incomplete, so the cursors stay where they
-              // are: advancing them would retire the server's only mention of
-              // a resource we could not read. A body that failed to parse, or
-              // a component REPORT that threw, is never a deletion — it is
-              // retried next cycle.
+              // The cursors stay where they are: advancing them would retire
+              // the server's only mention of a resource we could not read. A
+              // body that failed to parse, or a component REPORT that threw,
+              // is retried next cycle. Holding them is safe for the deletions
+              // applied above — they are idempotent, so the next cycle simply
+              // finds nothing left to remove.
               console.warn(
-                `[CalDAV] Skipping remote-deletion reconciliation for calendar ${cal.id}: ${
+                `[CalDAV] Calendar ${cal.id} not fully reconciled this cycle: ${
                   hadComponentFailures
-                    ? 'one or more component queries failed this cycle.'
-                    : 'one or more resources failed to parse this cycle.'
+                    ? 'one or more component queries failed, so remote deletions were skipped.'
+                    : `${failedHrefs.length} resource(s) failed to parse and were left as they are.`
                 }`
               )
             }
@@ -1997,6 +2019,14 @@ export function useCalDAVInstance(): UseCalDAVReturn {
         const duplicateIssuesAfterSync = useCalendarStore.getState().duplicateUidIssues
         if (duplicateIssuesAfterSync.length > 0) {
           showDuplicateUidNotification(duplicateIssuesAfterSync.length)
+        }
+
+        // Unreadable resources are left as they are (#228); say so once per
+        // resource rather than leaving only a console warning.
+        const newlyUnreadable = unreadableThisSync.filter((key) => !reportedUnreadable.has(key))
+        if (newlyUnreadable.length > 0) {
+          for (const key of newlyUnreadable) reportedUnreadable.add(key)
+          showUnreadableResourcesNotification(newlyUnreadable.length)
         }
 
         // After sync, check if any journal entries exist and enable journaling if so

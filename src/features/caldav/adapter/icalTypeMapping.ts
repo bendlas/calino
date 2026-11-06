@@ -13,9 +13,10 @@ import type {
 import { addDays } from 'date-fns'
 import { formatInTimeZone } from 'date-fns-tz'
 import { buildRRuleString, normaliseAllDayUntil } from '@/lib/recurrence'
-import { toLocalDateString } from '@/lib/datetime'
+import { homeDayKey } from '@/lib/homeTimezone'
 import { normalizeTzid } from '@/lib/timezoneRegistry'
 import { parseIcalColor } from '@/lib/cssColors'
+import { parseSortOrder } from '@/lib/taskSortOrder'
 import { readScalarProperties, writeScalarProperties } from './icalPropertyRegistry'
 
 const VALID_PARTSTATS: AttendeePartstat[] = [
@@ -243,8 +244,15 @@ function readAlarmReminder(
 export function parseAppleTravelDuration(vevent: ICAL.Component): number | undefined {
   const prop = vevent.getFirstProperty('x-apple-travel-duration')
   if (prop) {
-    const value = prop.getFirstValue() as string
-    return parseTravelDuration(value) ?? undefined
+    // iOS writes `X-APPLE-TRAVEL-DURATION;VALUE=DURATION:PT30M`, and ical.js
+    // turns an explicit VALUE=DURATION into an ICAL.Duration rather than the
+    // raw string a bare X- property yields. Accept both (#227).
+    const value: unknown = prop.getFirstValue()
+    if (value instanceof ICAL.Duration) {
+      const minutes = Math.ceil(Math.abs(value.toSeconds()) / 60)
+      return minutes > 0 ? minutes : undefined
+    }
+    if (typeof value === 'string') return parseTravelDuration(value) ?? undefined
   }
   return undefined
 }
@@ -1491,6 +1499,8 @@ export function icalVtodoToCalendarEvent(vtodo: ICAL.Component, calendarId: stri
     })
     ?.getFirstValue()
 
+  const sortOrder = parseSortOrder(vtodo.getFirstPropertyValue('x-apple-sort-order'))
+
   const uid = uidProp ? (uidProp.getFirstValue() as string) : createUuid()
 
   // R2.7 — A master and its detached overrides legitimately share a UID
@@ -1525,6 +1535,7 @@ export function icalVtodoToCalendarEvent(vtodo: ICAL.Component, calendarId: stri
     taskStatus,
     completedAt,
     parentTaskId: typeof parentTaskId === 'string' ? parentTaskId : undefined,
+    sortOrder,
     priority,
     percentComplete,
     sequence,
@@ -1550,6 +1561,22 @@ function isParentRelatedTo(prop: ICAL.Property): boolean {
     reltype === undefined ||
     (typeof reltype === 'string' && (!reltype.trim() || reltype.toUpperCase() === 'PARENT'))
   )
+}
+
+/**
+ * Write `X-APPLE-SORT-ORDER`. Unlike the fields above, an unset value leaves
+ * the property alone instead of removing it: Calino never clears an order, and
+ * a value the parser rejected as malformed still belongs to the client that
+ * wrote it.
+ *
+ * An override only updates a value it already has. Without one it inherits
+ * its master's order at parse time, and copying that onto the override would
+ * pin the occurrence to the old position once the master is reordered.
+ */
+function writeSortOrder(vtodo: ICAL.Component, task: CalendarEvent): void {
+  if (task.sortOrder === undefined) return
+  if (task.recurrenceId && !vtodo.hasProperty('x-apple-sort-order')) return
+  vtodo.updatePropertyWithValue('x-apple-sort-order', String(task.sortOrder))
 }
 
 /**
@@ -1671,6 +1698,8 @@ export function calendarEventToIcalVtodo(
     relatedTo.setParameter('reltype', 'PARENT')
   }
 
+  writeSortOrder(vtodo, task)
+
   if (task.priority) {
     const priorityValue = task.priority === 1 ? 1 : task.priority === 2 ? 5 : 9
     vtodo.updatePropertyWithValue('priority', priorityValue)
@@ -1752,7 +1781,7 @@ export function icalVjournalToCalendarEvent(
   const seqProp = vjournal.getFirstProperty('sequence')
 
   // DTSTART — date only for journal entries
-  let startDate = toLocalDateString(new Date())
+  let startDate = homeDayKey(new Date())
   if (!dtstartProp) {
     console.warn('VJOURNAL missing DTSTART, defaulting to today:', uidProp?.getFirstValue())
   }

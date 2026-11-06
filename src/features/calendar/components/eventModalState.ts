@@ -1,5 +1,6 @@
 import { format, parseISO } from 'date-fns'
 import { pad2, addMinutesToTimeStr, toEventInstant } from '@/lib/datetime'
+import { formatHome, homeDayKey, homeMinutes } from '@/lib/homeTimezone'
 export { addMinutesToTimeStr }
 import { extractOriginalEventId } from '@/lib/events'
 import { isUUID } from '@/lib/uuid'
@@ -54,7 +55,7 @@ export type InitialFormStateWithMeta = InitialFormState & {
 export function makeDefaultState(
   overrides: Partial<InitialFormStateWithMeta> = {}
 ): InitialFormStateWithMeta {
-  const today = format(new Date(), 'yyyy-MM-dd')
+  const today = homeDayKey(new Date())
   return {
     title: '',
     description: '',
@@ -122,8 +123,9 @@ function pickDefaultCalendar<T extends { id: string; isDefault: boolean; readOnl
 function isTimeInPast(hhmm: string): boolean {
   const [hours, minutes] = hhmm.split(':').map(Number)
   if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return false
-  const now = new Date()
-  return now.getHours() * 60 + now.getMinutes() > hours * 60 + minutes
+  // Compare wall clocks in the home zone: that is the clock the form fields and
+  // `defaultStartTime` are interpreted in, even when the device sits elsewhere.
+  return homeMinutes(new Date()) > hours * 60 + minutes
 }
 
 export function getInitialFormState(
@@ -212,7 +214,9 @@ export function getInitialFormState(
             : undefined
       const endOnDate = rule?.endDate
         ? format(parseISO(rule.endDate), 'yyyy-MM-dd')
-        : format(toEventInstant(existingEvent.start, existingEvent.timezone), 'yyyy-MM-dd')
+        : existingEvent.isAllDay
+          ? existingEvent.start.slice(0, 10)
+          : homeDayKey(toEventInstant(existingEvent.start, existingEvent.timezone))
       const endCondition: 'never' | 'on' | 'after' = rule?.endDate
         ? 'on'
         : rule?.count
@@ -223,14 +227,20 @@ export function getInitialFormState(
         description: existingEvent.description || '',
         location: existingEvent.location || '',
         // TZID events store naive wall clocks in the event zone — the modal
-        // must show them as the device would see the instant (Phase 2 C2).
-        startDate: format(
-          toEventInstant(existingEvent.start, existingEvent.timezone),
-          'yyyy-MM-dd'
-        ),
-        startTime: format(toEventInstant(existingEvent.start, existingEvent.timezone), 'HH:mm'),
-        endDate: format(toEventInstant(existingEvent.end, existingEvent.timezone), 'yyyy-MM-dd'),
-        endTime: format(toEventInstant(existingEvent.end, existingEvent.timezone), 'HH:mm'),
+        // shows the instant on the home clock. All-day values stay the date
+        // in the string.
+        startDate: existingEvent.isAllDay
+          ? existingEvent.start.slice(0, 10)
+          : homeDayKey(toEventInstant(existingEvent.start, existingEvent.timezone)),
+        startTime: existingEvent.isAllDay
+          ? '00:00'
+          : formatHome(toEventInstant(existingEvent.start, existingEvent.timezone), 'HH:mm'),
+        endDate: existingEvent.isAllDay
+          ? existingEvent.end.slice(0, 10)
+          : homeDayKey(toEventInstant(existingEvent.end, existingEvent.timezone)),
+        endTime: existingEvent.isAllDay
+          ? '00:00'
+          : formatHome(toEventInstant(existingEvent.end, existingEvent.timezone), 'HH:mm'),
         isAllDay: existingEvent.isAllDay,
         calendarId: existingEvent.calendarId,
         recurring: !!rule,
@@ -271,11 +281,12 @@ export function getInitialFormState(
         // No specific time. The preferred start time is used as-is, except when
         // clicking *today* and that time has already passed — then round up to
         // the next hour so the new event isn't born in the past.
-        const todayStr = format(new Date(), 'yyyy-MM-dd')
+        const todayStr = homeDayKey(new Date())
         if (dateStr === todayStr && isTimeInPast(defaultStartTime)) {
           const now = new Date()
-          let hours = now.getHours()
-          const mins = now.getMinutes()
+          const nowMinutes = homeMinutes(now)
+          let hours = Math.floor(nowMinutes / 60)
+          const mins = nowMinutes % 60
           if (mins > 0) hours += 1 // round up to next hour
           hours += 1 // start one hour out
           hours = hours % 24

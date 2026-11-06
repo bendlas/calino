@@ -1,3 +1,4 @@
+import type { CategoryStyleRule } from './categoryStyles'
 export type RecurrenceFrequency =
   'secondly' | 'minutely' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly'
 
@@ -106,6 +107,12 @@ export interface CalendarEvent {
   dueDate?: string
   completed?: boolean
   parentTaskId?: string
+  /**
+   * Manual order from `X-APPLE-SORT-ORDER`; lower comes first. Only breaks ties
+   * inside a day, a group or a set of siblings — never moves a task across
+   * days. An override without its own value carries its master's.
+   */
+  sortOrder?: number
   priority?: TaskPriority
   percentComplete?: number
   transparency?: 'opaque' | 'transparent'
@@ -355,7 +362,13 @@ export interface AdjustableThemeSettings {
 
 export interface UserSettings {
   language: Language
+  /**
+   * Unread sync leftover. Seeded from the browser so another client's value
+   * round-trips. Display uses `homeTimezone`.
+   */
   timezone: string
+  /** IANA zone treated as the user's clock. `null` follows the browser. */
+  homeTimezone: string | null
   secondaryTimezoneEnabled: boolean
   secondaryTimezone: string | null
   secondaryTimezoneLabel: string | null
@@ -399,6 +412,7 @@ export interface UserSettings {
   showSidebarTaskCalendarLabels: boolean
   useCategoryColors: boolean
   showEventIcons: boolean
+  categoryStyleRules: CategoryStyleRule[]
   sidebarWidth: number
   sidebarCollapsed: boolean
   journalEnabled: boolean

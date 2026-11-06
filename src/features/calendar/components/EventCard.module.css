@@ -209,13 +209,17 @@
   align-items: center;
   gap: 5px;
   min-width: 0;
+  overflow: hidden;
 }
 
 .meta .time {
-  /* The time matters more than the location or zone, so it only gives up
-     width once those have collapsed, and then it ellipsizes like the title. */
-  flex-shrink: 0.01;
+  /* The time matters more than the location or zone: it never shrinks beside
+     them (any shrink at all would ellipsize it), so they collapse first. Only
+     when the time alone is wider than the row does it ellipsize, like the
+     title. */
+  flex-shrink: 0;
   min-width: 0;
+  max-width: 100%;
 }
 
 /* Stacked cards: scale the time down to fit the card width before it
@@ -569,8 +573,17 @@
 }
 
 /* ---- Task Variant ---- */
+/* Tasks carry a lighter wash of their calendar colour than events, so the
+   two stay distinguishable while a task still reads as belonging to its
+   calendar. Derived from the theme's event mix so dark themes scale too. */
 .task {
-  background: transparent;
+  --task-bg-mix: calc(var(--event-bg-mix, 9%) * 0.65);
+  --task-bg-mix-hover: calc(var(--event-bg-mix-hover, 12%) * 0.65);
+  background: color-mix(
+    in srgb,
+    var(--event-color, var(--accent)) var(--task-bg-mix),
+    var(--canvas)
+  );
   border-color: transparent;
   box-shadow: none;
   padding: 2px 22px 2px 8px;
@@ -581,6 +594,15 @@
 .task.hovered {
   box-shadow: none;
   transform: none;
+}
+
+.task:not(.dot):hover,
+.task:not(.dot).hovered {
+  background: color-mix(
+    in srgb,
+    var(--event-color, var(--accent)) var(--task-bg-mix-hover),
+    var(--canvas)
+  );
 }
 
 .task .dragContent {
@@ -726,7 +748,11 @@
 .task.monthView:not(.dot) {
   border: 1px solid var(--line, rgba(var(--ink-raw), 0.09));
   border-radius: 999px;
-  background: var(--panel, transparent);
+  background: color-mix(
+    in srgb,
+    var(--event-color, var(--accent)) var(--task-bg-mix),
+    var(--panel, var(--canvas))
+  );
 }
 
 .task.monthView:not(.dot) .taskCheckbox {
@@ -908,4 +934,16 @@
 
 .card.tight .time {
   margin-top: 0;
+}
+
+/* A pen mark sits above the title, rather than inside its ellipsis mask.
+   CategoryStyleTitle keeps a separate clipped text span for long titles. */
+.card[data-category-sketch],
+.card[data-category-sketch] .dragContent,
+.card[data-category-sketch] .title {
+  overflow: visible;
+}
+
+.card[data-category-sketch]:not(.dragging):not(.resizing) {
+  z-index: 2;
 }

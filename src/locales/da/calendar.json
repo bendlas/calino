@@ -43,6 +43,9 @@
       "weekTasksAriaLabel": "Opgaver for uge {{number}}",
       "weekTasksEmpty": "Intet planlagt for denne uge endnu"
     },
+    "homeTimezone": {
+      "title": "Tider vist i {{zone}}"
+    },
     "day": {
       "backToAgenda": "Tilbage til dagsorden"
     },
@@ -296,6 +299,7 @@
     "eventForm": {
       "start": "Start",
       "startTime": "Starttidspunkt",
+      "pickDate": "Vælg dato",
       "end": "Slut",
       "endTime": "Sluttidspunkt",
       "foreignZoneTimes": "{{times}} i {{zone}}",
@@ -331,7 +335,16 @@
         "hoursBefore_one": "{{count}} time before",
         "hoursBefore_other": "{{count}} timer before",
         "daysBefore_one": "{{count}} dag before",
-        "daysBefore_other": "{{count}} dage before"
+        "daysBefore_other": "{{count}} dage before",
+        "custom": "Brugerdefineret…",
+        "customInputAria": "Brugerdefineret påmindelse",
+        "customUnitAria": "Enhed for brugerdefineret påmindelse",
+        "customAdd": "Tilføj",
+        "customInvalid": "Indtast et heltal mellem 0 og {{max}} minutter.",
+        "unitMinutes": "Minutter",
+        "unitHours": "Timer",
+        "unitDays": "Dage",
+        "unitWeeks": "Uger"
       }
     },
     "eventCard": {
@@ -518,6 +531,9 @@
     "navCreate": "Opret",
     "navBackToCalendar": "Tilbage til kalenderen",
     "agendaMakeSubtask": "Gør til underopgave",
+    "agendaCannotSubtaskRepeatingParent": "Gentagne opgaver kan ikke have underopgaver",
+    "agendaCannotSubtaskRepeatingTask": "Gentagne opgaver kan ikke være underopgaver",
+    "agendaCannotSubtaskCycle": "En opgave kan ikke ligge i sin egen underopgave",
     "agendaDue": "Forfalder",
     "agendaAllDay": "Hele dagen",
     "today": "I dag",
@@ -655,6 +671,8 @@
     "task": {
       "markDone": "Markér som udført",
       "markNotDone": "Markér som ikke udført",
+      "moveUp": "Flyt op",
+      "moveDown": "Flyt ned",
       "priority": {
         "none": "Ingen",
         "high": "Høj",

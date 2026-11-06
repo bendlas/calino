@@ -1,3 +1,4 @@
+import { DEFAULT_CATEGORY_STYLE_RULES, normalizeCategoryStyleRules } from '@/lib/categoryStyles'
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { safeLocalStorage } from '@/lib/storage'
@@ -165,6 +166,7 @@ const bakedSettings = getBakedSettingsDefaults()
 const DEFAULT_SETTINGS: UserSettings = {
   language: getBrowserLanguage(),
   timezone: getBrowserTimezone(),
+  homeTimezone: null,
   secondaryTimezoneEnabled: false,
   secondaryTimezone: null,
   secondaryTimezoneLabel: null,
@@ -211,6 +213,7 @@ const DEFAULT_SETTINGS: UserSettings = {
   showSidebarTaskCalendarLabels: true,
   useCategoryColors: true,
   showEventIcons: true,
+  categoryStyleRules: DEFAULT_CATEGORY_STYLE_RULES,
   sidebarWidth: 300,
   sidebarCollapsed: false,
   journalEnabled: false,
@@ -237,6 +240,15 @@ export const useSettingsStore = create<SettingsStore>()(
 
       updateSettings: (updates: Partial<UserSettings>): void => {
         set((state) => {
+          if (updates.categoryStyleRules !== undefined) {
+            updates = {
+              ...updates,
+              categoryStyleRules: normalizeCategoryStyleRules(
+                updates.categoryStyleRules,
+                state.categoryStyleRules
+              ),
+            }
+          }
           if (updates.adjustableTheme === undefined) return updates
           return {
             ...updates,
@@ -261,6 +273,7 @@ export const useSettingsStore = create<SettingsStore>()(
         return {
           ...currentState,
           ...persisted,
+          categoryStyleRules: normalizeCategoryStyleRules(persisted.categoryStyleRules),
           // The original shared preference seeds the sidebar only until it
           // has its own saved value. Subsequent toggles stay independent.
           showSidebarTaskCalendarLabels:
@@ -279,6 +292,7 @@ export const useSettingsStore = create<SettingsStore>()(
         return {
           ...DEFAULT_SETTINGS,
           ...persisted,
+          categoryStyleRules: normalizeCategoryStyleRules(persisted.categoryStyleRules),
           showSidebarTaskCalendarLabels:
             persisted.showSidebarTaskCalendarLabels ??
             persisted.showTaskCalendarLabels ??

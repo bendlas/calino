@@ -1,3 +1,4 @@
+import { useEventContentHeights } from '../hooks/useEventContentHeights'
 import { type JSX } from 'react'
 import { useMemo, useState, useCallback, useRef, useLayoutEffect, useEffect } from 'react'
 import {
@@ -16,12 +17,14 @@ import {
   type DragMoveEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
-import { format, startOfDay, endOfDay, parseISO, isToday, addDays, addMinutes } from 'date-fns'
+import { format, parseISO, addDays, addMinutes } from 'date-fns'
 import { useCalendarStore, getTasksForDay } from '@/store/calendarStore'
 import { useTranslation } from 'react-i18next'
+import { HomeZoneLabel } from './HomeZoneLabel'
 import i18n from '@/lib/i18n'
 import { formatDisplayDate } from '@/lib/datetime'
 import { filterTasksByCollapsedAncestors } from '@/lib/taskTree'
+import { compareTaskSortOrder } from '@/lib/taskSortOrder'
 import { useTaskCollapse } from '../hooks/useTaskCollapse'
 import { useSettingsStore } from '@/store/settingsStore'
 import { useCalDAV } from '@/features/caldav/hooks/useCalDAV'
@@ -46,8 +49,17 @@ import {
   TASK_PILL_LAYOUT_MINUTES,
 } from '../lib/eventLayout'
 import { eventCardVariants } from '../lib/eventAnimations'
-import { eventLastDay } from '../lib/multiDayFragments'
+import { makeDayFragments } from '../lib/multiDayFragments'
 import { formatTime, pad2, toLocalDateString, toEventInstant } from '@/lib/datetime'
+import {
+  homeDayKey,
+  homeMinutes,
+  instantFromHomeMinutes,
+  isHomeToday,
+  parseHomeWall,
+  useHomeTimezone,
+  useHomeTimezoneOverride,
+} from '@/lib/homeTimezone'
 import { HOURS } from '@/lib/hours'
 import { getTimezoneAbbr, getSecondaryHourLabel } from '@/lib/timezoneHelper'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -155,6 +167,8 @@ export function DayView({
   onBack,
 }: { selectedDate?: string; onBack?: () => void } = {}): JSX.Element {
   const { t } = useTranslation('calendar')
+  const homeTz = useHomeTimezone()
+  const hasHomeOverride = useHomeTimezoneOverride() !== null
   const storeDate = useCalendarStore((state) => state.currentDate)
   const currentDate = propDate || storeDate
   const events = useCalendarStore((state) => state.events)
@@ -168,8 +182,6 @@ export function DayView({
   const secondaryTimezoneEnabled = useSettingsStore((state) => state.secondaryTimezoneEnabled)
   const secondaryTimezone = useSettingsStore((state) => state.secondaryTimezone)
   const secondaryTimezoneLabel = useSettingsStore((state) => state.secondaryTimezoneLabel)
-  const timezone = useSettingsStore((state) => state.timezone)
-
   const isDualTz = secondaryTimezoneEnabled && !!secondaryTimezone
 
   const [activeEvent, setActiveEvent] = useState<CalendarEvent | null>(null)
@@ -335,10 +347,7 @@ export function DayView({
   }, [])
 
   const date = useMemo(() => parseISO(currentDate), [currentDate])
-  const localTzAbbr = useMemo(
-    () => getTimezoneAbbr(date, timezone || Intl.DateTimeFormat().resolvedOptions().timeZone),
-    [date, timezone]
-  )
+  const localTzAbbr = useMemo(() => getTimezoneAbbr(date, homeTz), [date, homeTz])
   const secondaryTzAbbr = useMemo(
     () =>
       secondaryTimezoneLabel || (secondaryTimezone ? getTimezoneAbbr(date, secondaryTimezone) : ''),
@@ -366,31 +375,11 @@ export function DayView({
     const fragmentedEvents: CalendarEvent[] = []
 
     for (const event of eventsForDay) {
-      const eventStart = toEventInstant(event.start, event.timezone)
-      const eventEnd = eventLastDay(event)
-      const eventStartKey = format(eventStart, 'yyyy-MM-dd')
-      const eventEndKey = format(eventEnd, 'yyyy-MM-dd')
-      // Ends exactly at midnight: nothing of it falls on this day.
-      if (eventEndKey < dateKey) continue
-
-      if (eventStartKey === eventEndKey) {
-        fragmentedEvents.push(event)
-      } else {
-        const isFirst = eventStartKey === dateKey
-        const isLast = eventEndKey === dateKey
-
-        const fragment: CalendarEvent = {
-          ...event,
-          start: isFirst ? event.start : format(startOfDay(date), "yyyy-MM-dd'T'HH:mm:ss"),
-          end: isLast ? event.end : format(endOfDay(date), "yyyy-MM-dd'T'HH:mm:ss"),
-          isFragment: true,
-          isFirstFragment: isFirst,
-          isLastFragment: isLast,
-          originalStart: event.start,
-          originalEnd: event.end,
-        }
-        fragmentedEvents.push(fragment)
-      }
+      const fragment = makeDayFragments(event).find((part) => {
+        const startKey = homeDayKey(toEventInstant(part.start, part.timezone))
+        return startKey === dateKey
+      })
+      if (fragment) fragmentedEvents.push(fragment)
     }
 
     return fragmentedEvents
@@ -410,12 +399,15 @@ export function DayView({
   // Tasks with a due time are anchored on the timeline as pills (matching week
   // view); the rest stay in the header list.
   const timedTasks = useMemo(() => dayTasks.filter((t) => hasDueTime(t)), [dayTasks])
-  const untimedTasks = useMemo(() => dayTasks.filter((t) => !hasDueTime(t)), [dayTasks])
+  const untimedTasks = useMemo(
+    () => dayTasks.filter((t) => !hasDueTime(t)).sort(compareTaskSortOrder),
+    [dayTasks]
+  )
 
   // Geometry is independent of pointer-preview and create-drag state. Keep
-  // all expensive event preparation behind the two data inputs that can
-  // actually change the layout so those interactions only rebuild JSX and
-  // the preview overlay.
+  // event preparation behind data, zoom and content measurements so those
+  // interactions only rebuild JSX and the preview overlay.
+  const { contentHeights, reportContentHeight } = useEventContentHeights()
   const dayEventLayout = useMemo(() => {
     const sortedEvents = [...dayEvents].sort(
       (a, b) =>
@@ -436,9 +428,12 @@ export function DayView({
       sortedEvents,
       transparentEvents,
       taskById,
-      positionedEvents: positionEvents([...sortedEvents, ...taskLayoutItems]),
+      positionedEvents: positionEvents([...sortedEvents, ...taskLayoutItems], {
+        hourHeight,
+        contentHeights,
+      }),
     }
-  }, [dayEvents, timedTasks])
+  }, [dayEvents, timedTasks, hourHeight, contentHeights])
 
   const [isScrolled, setIsScrolled] = useState(false)
   const lastDateRef = useRef(date.toISOString())
@@ -459,12 +454,12 @@ export function DayView({
     const rafId = requestAnimationFrame(() => {
       if (!bodyRef.current) return
 
-      const scrollToNow = isToday(date)
+      const scrollToNow = isHomeToday(date)
 
       if (scrollToNow) {
         // Scroll to current time with 2h padding above
         const now = new Date()
-        const minutesSinceMidnight = now.getHours() * 60 + now.getMinutes()
+        const minutesSinceMidnight = homeMinutes(now)
         const fraction = minutesSinceMidnight / (24 * 60)
         const scrollTop =
           fraction * bodyRef.current.scrollHeight - bodyRef.current.clientHeight * 0.3
@@ -473,9 +468,7 @@ export function DayView({
         // Reuse the sorted data used by the event layout below.
         const firstEvent = dayEventLayout.sortedEvents[0]
         const eventStart = toEventInstant(firstEvent.start, firstEvent.timezone)
-        const hours = eventStart.getHours()
-        const minutes = eventStart.getMinutes()
-        const fraction = (hours * 60 + minutes) / (24 * 60)
+        const fraction = homeMinutes(eventStart) / (24 * 60)
         const scrollTop = fraction * bodyRef.current.scrollHeight - 60
         bodyRef.current.scrollTo({ top: Math.max(0, scrollTop), behavior: 'smooth' })
       }
@@ -654,7 +647,7 @@ export function DayView({
     // Otherwise preserve the event's existing duration.
     let updates: { start: string; end: string; isAllDay?: boolean }
     if (originalEvent.isAllDay) {
-      const newStart = parseISO(`${dayStr}T${hourStr}`)
+      const newStart = parseHomeWall(`${dayStr}T${hourStr}`)
       const newEnd = new Date(newStart.getTime() + 60 * 60 * 1000)
       updates = {
         start: newStart.toISOString(),
@@ -662,17 +655,19 @@ export function DayView({
         isAllDay: false,
       }
     } else {
-      // Phase 2 (C3) — baseline in the device frame so the drop target is
-      // the instant the user sees; updateEvent re-frames it for TZID events.
+      // Baseline in the home zone so the drop target is the instant the user
+      // sees; updateEvent re-frames it for TZID events.
       const originalStart = toEventInstant(originalEvent.start, originalEvent.timezone)
       const originalEnd = toEventInstant(originalEvent.end, originalEvent.timezone)
       const durationMs = originalEnd.getTime() - originalStart.getTime()
       // The droppable cell only tells us which day was dropped on; the time of
       // day comes from how far the card was dragged vertically, snapped to a
       // quarter hour. Using the hour cell alone would round to whole hours.
-      const startMinutes = originalStart.getHours() * 60 + originalStart.getMinutes()
-      const newStart = parseISO(`${dayStr}T00:00:00`)
-      newStart.setMinutes(snapMinuteOfDay(startMinutes, delta.y, hourHeight))
+      const startMinutes = homeMinutes(originalStart)
+      const newStart = instantFromHomeMinutes(
+        dayStr,
+        snapMinuteOfDay(startMinutes, delta.y, hourHeight)
+      )
       const newEnd = new Date(newStart.getTime() + durationMs)
       updates = {
         start: newStart.toISOString(),
@@ -748,7 +743,7 @@ export function DayView({
       )
     }
 
-    for (const { event, column, totalColumns } of positionedEvents) {
+    for (const { event, column, totalColumns, columnSpan, inset } of positionedEvents) {
       const task = taskById.get(event.id)
       if (task) {
         elements.push(
@@ -760,10 +755,11 @@ export function DayView({
             exit={skipExit(task.id) ? undefined : cardExit}
             transition={enterTransition}
             className={`${styles.eventPositioned} ${styles.taskPositioned}`}
-            style={taskPillStyle(task, column, totalColumns)}
+            style={taskPillStyle(task, column, totalColumns, columnSpan, inset)}
           >
             <EventCard
               event={task}
+              onContentHeightChange={reportContentHeight}
               compact
               monthView
               enableResize={false}
@@ -783,7 +779,7 @@ export function DayView({
         calendars,
         useCategoryColors: false,
       })
-      const style = positionedEventStyle(event, column, totalColumns)
+      const style = positionedEventStyle(event, column, totalColumns, columnSpan, inset)
 
       if (event.travelDuration && event.travelDuration > 0) {
         elements.push(
@@ -796,7 +792,7 @@ export function DayView({
             transition={enterTransition}
             className={styles.travelBar}
             style={{
-              ...travelBarStyle(event, column, totalColumns),
+              ...travelBarStyle(event, column, totalColumns, columnSpan, inset),
               backgroundColor: `${eventColor}15`,
             }}
             onClick={() => openModal(undefined, undefined, event.id)}
@@ -817,9 +813,14 @@ export function DayView({
           exit={skipExit(event.id) ? undefined : cardExit}
           transition={enterTransition}
           className={styles.eventPositioned}
-          style={{ ...style, zIndex: event.isFragment ? 1 : 2 }}
+          style={{ ...style, zIndex: 2 }}
         >
-          <EventCard event={event} hideTopRadius={!!event.travelDuration} />
+          <EventCard
+            event={event}
+            onContentHeightChange={reportContentHeight}
+            hourHeight={hourHeight}
+            hideTopRadius={!!event.travelDuration}
+          />
         </motion.div>
       )
     }
@@ -835,7 +836,7 @@ export function DayView({
     return <AnimatePresence initial={false}>{elements}</AnimatePresence>
   }
 
-  const isCurrentDay = isToday(date)
+  const isCurrentDay = isHomeToday(date)
   const dateStr = format(date, 'yyyy-MM-dd')
 
   return (
@@ -873,14 +874,18 @@ export function DayView({
           ref={setAllDayDropRef}
           className={`${styles.header} ${isScrolled ? styles.headerShadow : ''} ${allDayEvents.length > 0 ? styles.hasAllDayEvents : ''} ${isAllDayDropOver && activeEvent && !activeEvent.isAllDay ? styles.headerDropActive : ''}`}
         >
-          {isDualTz && (
+          {isDualTz ? (
             <div className={styles.headerGutter}>
               <div className={styles.timeZoneHeaders}>
                 <span className={styles.primaryTzHeader}>{localTzAbbr}</span>
                 <span className={styles.secondaryTzHeader}>{secondaryTzAbbr}</span>
               </div>
             </div>
-          )}
+          ) : hasHomeOverride ? (
+            <div className={styles.headerGutter}>
+              <HomeZoneLabel date={date} className={styles.homeZoneLabel} />
+            </div>
+          ) : null}
           {onBack && (
             <button
               className={styles.backButton}

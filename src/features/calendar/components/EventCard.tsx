@@ -1,9 +1,13 @@
+import { categoryStyleProps } from '@/lib/categoryStylePresentation'
+import { useCategoryEventStyle } from '@/hooks/useCategoryEventStyle'
+import { CategoryStyleTitle } from '@/components/common/CategoryEventStyle'
 import type { JSX } from 'react'
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { format, parseISO, isSameDay } from 'date-fns'
 import { useTranslation } from 'react-i18next'
-import { formatEventTime, formatDisplayDate, toEventInstant } from '@/lib/datetime'
+import { formatEventTime, toEventInstant } from '@/lib/datetime'
+import { formatHome, homeTimezone, useHomeTimezone } from '@/lib/homeTimezone'
 import { useDraggable } from '@dnd-kit/core'
 import { useCalendarStore } from '@/store/calendarStore'
 import { useSettingsStore } from '@/store/settingsStore'
@@ -40,10 +44,6 @@ import { eventLastDay } from '../lib/multiDayFragments'
 import { TaskCollapseToggle } from './TaskCollapseToggle'
 import styles from './EventCard.module.css'
 
-/** Device zone — the zone every non-TZID time is shown in. A TZID badge is
- * shown when the event's own zone differs from it (Phase 2 C2). */
-const DEVICE_TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone
-
 /** Below this rendered height a card only has room for a single line of text. */
 const TIGHT_CARD_HEIGHT = 42
 
@@ -56,6 +56,7 @@ import { duplicateEventWithSync } from '@/lib/duplicateWithSync'
 interface EventCardProps {
   event: CalendarEvent
   onClick?: (event: CalendarEvent) => void
+  onContentHeightChange?: (id: string, height: number) => void
   compact?: boolean
   isDragging?: boolean
   enableResize?: boolean
@@ -88,6 +89,7 @@ interface EventCardProps {
 export const EventCard = React.memo(function EventCard({
   event,
   onClick,
+  onContentHeightChange,
   compact = false,
   isDragging = false,
   enableResize = true,
@@ -108,6 +110,9 @@ export const EventCard = React.memo(function EventCard({
   taskSubtasksPopup = false,
 }: EventCardProps): JSX.Element {
   const { t } = useTranslation('calendar')
+  const categoryAppearance = useCategoryEventStyle(event)
+  const categoryPresentation = categoryStyleProps(dotMode ? {} : categoryAppearance)
+  useHomeTimezone()
   const useCategoryColors = useSettingsStore((state) => state.useCategoryColors)
   const calendar = useCalendarStore((state) =>
     state.calendars.find((candidate) => candidate.id === event.calendarId)
@@ -158,6 +163,18 @@ export const EventCard = React.memo(function EventCard({
 
   const [isResizing, setIsResizing] = useState(false)
   const [didInteract, setDidInteract] = useState(false)
+  const contentRef = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const node = contentRef.current
+    if (!node || !onContentHeightChange || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(() => {
+      // Include top padding and breathing room for pen marks, icons and the next card.
+      onContentHeightChange(event.id, Math.ceil(node.offsetTop + node.offsetHeight + 6))
+    })
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [event.id, onContentHeightChange])
+
   const resizeStartY = useRef<number | null>(null)
   const pointerStartPos = useRef<{ x: number; y: number } | null>(null)
   const resizeStartEnd = useRef<Date | null>(null)
@@ -526,7 +543,9 @@ export const EventCard = React.memo(function EventCard({
     <>
       <div
         ref={setNodeRef}
-        style={style}
+        style={{ ...style, ...categoryPresentation.style }}
+        data-category-texture={categoryPresentation['data-category-texture']}
+        data-category-sketch={!dotMode && categoryAppearance.sketch ? 'true' : undefined}
         data-event-card
         data-component="event-card"
         role="button"
@@ -643,6 +662,8 @@ export const EventCard = React.memo(function EventCard({
         {isTask ? (
           <>
             <div
+              ref={contentRef}
+              data-component="event-card-content"
               className={`${styles.dragContent} ${showTaskCollapse ? styles.dragContentWithCollapse : ''}`}
               onPointerDown={(e) => {
                 e.stopPropagation()
@@ -673,7 +694,7 @@ export const EventCard = React.memo(function EventCard({
                 style={titleStyle}
                 aria-hidden={hideFragmentTitle || undefined}
               >
-                {event.title}
+                <CategoryStyleTitle title={event.title} appearance={categoryAppearance} />
               </div>
               {!hideDueTime && hasDueTime(event) && event.dueDate && (
                 <div className={styles.dueDate}>
@@ -698,6 +719,8 @@ export const EventCard = React.memo(function EventCard({
         ) : (
           <>
             <div
+              ref={contentRef}
+              data-component="event-card-content"
               className={styles.dragContent}
               onPointerDown={(e) => {
                 e.stopPropagation()
@@ -719,17 +742,17 @@ export const EventCard = React.memo(function EventCard({
                 style={titleStyle}
                 aria-hidden={hideFragmentTitle || undefined}
               >
-                {event.title}
+                <CategoryStyleTitle title={event.title} appearance={categoryAppearance} />
               </div>
               {(() => {
                 const timeText =
                   !compact && !event.isAllDay
                     ? isFragmentFirst
-                      ? `${formatEventTime(event.start, event.timezone, timeFormat)} - ${formatDisplayDate(toEventInstant(event.originalEnd || event.end, event.timezone), 'MMM d')}`
+                      ? `${formatEventTime(event.start, event.timezone, timeFormat)} - ${formatHome(toEventInstant(event.originalEnd || event.end, event.timezone), 'MMM d')}`
                       : isFragmentMiddle
-                        ? `${formatDisplayDate(toEventInstant(event.originalStart || event.start, event.timezone), 'MMM d')} - ${formatDisplayDate(toEventInstant(event.originalEnd || event.end, event.timezone), 'MMM d')}`
+                        ? `${formatHome(toEventInstant(event.originalStart || event.start, event.timezone), 'MMM d')} - ${formatHome(toEventInstant(event.originalEnd || event.end, event.timezone), 'MMM d')}`
                         : isFragmentLast
-                          ? `${formatDisplayDate(toEventInstant(event.originalStart || event.start, event.timezone), 'MMM d')} - ${formatEventTime(event.end, event.timezone, timeFormat)}`
+                          ? `${formatHome(toEventInstant(event.originalStart || event.start, event.timezone), 'MMM d')} - ${formatEventTime(event.end, event.timezone, timeFormat)}`
                           : `${formatEventTime(event.start, event.timezone, timeFormat)} - ${formatEventTime(event.end, event.timezone, timeFormat)}`
                     : event.isAllDay
                       ? t('modals.eventCard.allDay')
@@ -738,7 +761,7 @@ export const EventCard = React.memo(function EventCard({
                 // The zone rides on the time line rather than below it: a
                 // short card clips anything on a second row.
                 const tzText =
-                  !compact && event.timezone && event.timezone !== DEVICE_TIMEZONE
+                  !compact && event.timezone && event.timezone !== homeTimezone()
                     ? shortZoneLabel(event.timezone)
                     : null
                 if (!timeText && !tzText && !locText) return null

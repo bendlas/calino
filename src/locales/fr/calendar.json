@@ -43,6 +43,9 @@
       "weekTasksAriaLabel": "Tâches de la semaine {{number}}",
       "weekTasksEmpty": "Rien de prévu pour cette semaine"
     },
+    "homeTimezone": {
+      "title": "Heures affichées en {{zone}}"
+    },
     "day": {
       "backToAgenda": "Retour à l’agenda"
     },
@@ -202,6 +205,9 @@
     "navCreate": "Créer",
     "navBackToCalendar": "Retour au calendrier",
     "agendaMakeSubtask": "Convertir en sous-tâche",
+    "agendaCannotSubtaskRepeatingParent": "Les tâches répétées ne peuvent pas avoir de sous-tâches",
+    "agendaCannotSubtaskRepeatingTask": "Les tâches répétées ne peuvent pas être des sous-tâches",
+    "agendaCannotSubtaskCycle": "Une tâche ne peut pas aller dans sa propre sous-tâche",
     "agendaDue": "Échéance",
     "agendaAllDay": "Toute la journée",
     "today": "Aujourd’hui",
@@ -405,6 +411,7 @@
     "eventForm": {
       "start": "Début",
       "startTime": "Heure de début",
+      "pickDate": "Choisir une date",
       "end": "Fin",
       "endTime": "Heure de fin",
       "foreignZoneTimes": "{{times}} dans {{zone}}",
@@ -440,7 +447,16 @@
         "hoursBefore_one": "{{count}} heure avant",
         "hoursBefore_other": "{{count}} heures avant",
         "daysBefore_one": "{{count}} jour avant",
-        "daysBefore_other": "{{count}} jours avant"
+        "daysBefore_other": "{{count}} jours avant",
+        "custom": "Personnalisé…",
+        "customInputAria": "Rappel personnalisé",
+        "customUnitAria": "Unité du rappel personnalisé",
+        "customAdd": "Ajouter",
+        "customInvalid": "Saisir un nombre entier entre 0 et {{max}} minutes.",
+        "unitMinutes": "Minutes",
+        "unitHours": "Heures",
+        "unitDays": "Jours",
+        "unitWeeks": "Semaines"
       }
     },
     "eventCard": {
@@ -655,6 +671,8 @@
     "task": {
       "markDone": "Marquer comme faite",
       "markNotDone": "Marquer comme non faite",
+      "moveUp": "Monter",
+      "moveDown": "Descendre",
       "priority": {
         "none": "Aucune",
         "high": "Haute",

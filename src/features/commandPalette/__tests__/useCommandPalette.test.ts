@@ -125,6 +125,7 @@ vi.mock('@/store/settingsStore', () => ({
     const state: SettingsStore = {
       language: 'en',
       timezone: 'UTC',
+      homeTimezone: null,
       secondaryTimezoneEnabled: false,
       secondaryTimezone: null,
       secondaryTimezoneLabel: null,
@@ -202,6 +203,7 @@ vi.mock('@/store/settingsStore', () => ({
       viewDividerAfter: 'day',
       useCategoryColors: true,
       showEventIcons: true,
+      categoryStyleRules: [],
       journalEnabled: false,
       contactsEnabled: false,
       taskDueDateReminders: true,

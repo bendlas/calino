@@ -21,6 +21,14 @@
   "saved": "Salvato",
   "general": {
     "title": "Generale",
+    "homeTimezone": {
+      "label": "Fuso orario di casa",
+      "desc": "Gli eventi vengono mostrati e creati in questo fuso. Automatico segue il browser.",
+      "ariaLabel": "Fuso orario di casa",
+      "automatic": "Automatico (browser)",
+      "search": "Cerca fusi orari",
+      "noResults": "Nessun fuso orario corrispondente"
+    },
     "dateFormat": {
       "label": "Formato data",
       "desc": "Come vengono visualizzate le date nell'app",
@@ -270,7 +278,10 @@
       "15minBefore": "15 minuti prima",
       "30minBefore": "30 minuti prima",
       "1hourBefore": "1 ora prima",
-      "1dayBefore": "1 giorno prima"
+      "1dayBefore": "1 giorno prima",
+      "custom": "Personalizzato…",
+      "customAriaLabel": "Valore personalizzato del promemoria predefinito",
+      "customUnitAriaLabel": "Unità del promemoria predefinito personalizzato"
     }
   },
   "conflict": {
@@ -400,6 +411,41 @@
         "meetsAA": "I colori soddisfano WCAG AA.",
         "needsAttention": "Il contrasto richiede attenzione",
         "looksGood": "Il contrasto è adeguato."
+      }
+    },
+    "categoryStyles": {
+      "title": "Stile per categoria",
+      "description": "Assegna uno stile agli eventi in base alle categorie. Le modifiche vengono salvate automaticamente.",
+      "reset": "Ripristina predefiniti",
+      "newRule": "Nuova regola",
+      "disabled": "Disattivata",
+      "addRule": "Aggiungi regola",
+      "enabled": "Attivata",
+      "categories": "Corrisponde a una categoria",
+      "matchHint": "Separate da virgole · nomi esatti · ignora maiuscole e minuscole",
+      "style": "Stile",
+      "lettering": "Carattere",
+      "accent": "Accento",
+      "earlier": "↑ Prima",
+      "later": "↓ Dopo",
+      "remove": "Rimuovi",
+      "empty": "Nessuna regola. Aggiungi una regola o ripristina i valori predefiniti.",
+      "precedence": "Le regole corrispondenti si combinano. Per la stessa proprietà prevale la regola più in basso. I colori del calendario restano visibili salvo modifiche allo sfondo. Gli stili visivi non cambiano lo stato o il completamento di un evento.",
+      "suggestions": "Altri stili da provare",
+      "sample": "Revisione con Alex",
+      "noCategories": "Ancora nessuna categoria",
+      "treatments": {
+        "tentative": "Matita – grigio e provvisorio",
+        "important": "Schizzo – contorno a mano",
+        "focus": "Calma – bordo tratteggiato",
+        "travel": "In movimento – trama diagonale",
+        "deadline": "Evidenziatore – sottolineatura",
+        "done": "Finito – barrato"
+      },
+      "fonts": {
+        "inherit": "Mantieni attuale",
+        "hand": "Scritto a mano",
+        "standard": "Standard"
       }
     }
   },
@@ -614,6 +660,16 @@
       "confirm": "Eliminare tutti gli eventi salvati su questo dispositivo? Gli eventi sul tuo server non vengono eliminati e potrebbero ricomparire dopo la prossima sincronizzazione. Questa azione non può essere annullata.",
       "action": "Elimina eventi locali",
       "confirmCalendar": "Eliminare tutti gli eventi in “{{name}}” da questo dispositivo? Gli eventi sul tuo server non vengono eliminati e potrebbero ricomparire dopo la prossima sincronizzazione. Questa azione non può essere annullata."
+    },
+    "resync": {
+      "group": "Sincronizzazione",
+      "label": "Risincronizza dal server",
+      "desc": "Dimentica ciò che Calino ha già sincronizzato e scarica di nuovo calendari e contatti dal server. Account, password e impostazioni vengono mantenuti. Usalo se qualcosa sembra non aggiornato.",
+      "confirm": "Risincronizzare tutto dai tuoi server? Account e impostazioni vengono mantenuti e le modifiche di questo dispositivo non ancora sincronizzate vengono comunque inviate. Gli eventi e i contatti che esistono solo su questo dispositivo non vengono rimossi.",
+      "action": "Risincronizza",
+      "running": "Risincronizzazione…",
+      "done": "Risincronizzazione completata",
+      "failed": "La risincronizzazione è terminata con errori. Controlla la connessione e riprova."
     },
     "resetApp": {
       "label": "Reimposta Calino su questo dispositivo",

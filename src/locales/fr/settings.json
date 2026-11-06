@@ -21,6 +21,14 @@
   "saved": "Enregistré",
   "general": {
     "title": "Général",
+    "homeTimezone": {
+      "label": "Fuseau horaire principal",
+      "desc": "Les événements sont affichés et créés dans ce fuseau. Automatique suit le navigateur.",
+      "ariaLabel": "Fuseau horaire principal",
+      "automatic": "Automatique (navigateur)",
+      "search": "Rechercher un fuseau horaire",
+      "noResults": "Aucun fuseau horaire correspondant"
+    },
     "dateFormat": {
       "label": "Format de date",
       "desc": "Format d’affichage des dates dans l’application",
@@ -270,7 +278,10 @@
       "15minBefore": "15 minutes avant",
       "30minBefore": "30 minutes avant",
       "1hourBefore": "1 heure avant",
-      "1dayBefore": "1 jour avant"
+      "1dayBefore": "1 jour avant",
+      "custom": "Personnalisé…",
+      "customAriaLabel": "Valeur personnalisée du rappel par défaut",
+      "customUnitAriaLabel": "Unité du rappel par défaut personnalisé"
     }
   },
   "conflict": {
@@ -400,6 +411,41 @@
         "meetsAA": "Les couleurs respectent le niveau AA des WCAG.",
         "needsAttention": "Le contraste doit être amélioré",
         "looksGood": "Le contraste est bon"
+      }
+    },
+    "categoryStyles": {
+      "title": "Style par catégorie",
+      "description": "Appliquez un style aux événements selon leurs catégories. Les modifications sont enregistrées automatiquement.",
+      "reset": "Rétablir les valeurs",
+      "newRule": "Nouvelle règle",
+      "disabled": "Désactivée",
+      "addRule": "Ajouter une règle",
+      "enabled": "Activée",
+      "categories": "Correspond à une de ces catégories",
+      "matchHint": "Séparées par des virgules · noms exacts · sans distinction de casse",
+      "style": "Style",
+      "lettering": "Typographie",
+      "accent": "Accent",
+      "earlier": "↑ Avant",
+      "later": "↓ Après",
+      "remove": "Supprimer",
+      "empty": "Aucune règle. Ajoutez une règle ou rétablissez les valeurs par défaut.",
+      "precedence": "Les règles correspondantes se combinent. Pour une même propriété, la règle du bas gagne. Les couleurs du calendrier sont conservées sauf si une règle modifie le fond. Les styles visuels ne changent ni le statut ni l’achèvement d’un événement.",
+      "suggestions": "Autres styles à essayer",
+      "sample": "Revue avec Alex",
+      "noCategories": "Pas encore de catégories",
+      "treatments": {
+        "tentative": "Crayon – gris et provisoire",
+        "important": "Croquis – contour dessiné à la main",
+        "focus": "Calme – bordure en pointillés",
+        "travel": "En déplacement – texture diagonale",
+        "deadline": "Marqueur – soulignement",
+        "done": "Terminé – barré"
+      },
+      "fonts": {
+        "inherit": "Conserver",
+        "hand": "Manuscrite",
+        "standard": "Standard"
       }
     }
   },
@@ -614,6 +660,16 @@
       "confirm": "Supprimer tous les événements stockés sur cet appareil ? Les événements sur votre serveur ne sont pas supprimés et peuvent réapparaître après la prochaine synchronisation. Cette action est irréversible.",
       "action": "Supprimer les événements locaux",
       "confirmCalendar": "Supprimer tous les événements de « {{name}} » sur cet appareil ? Les événements sur votre serveur ne sont pas supprimés et peuvent réapparaître après la prochaine synchronisation. Cette action est irréversible."
+    },
+    "resync": {
+      "group": "Synchronisation",
+      "label": "Resynchroniser depuis le serveur",
+      "desc": "Oublie ce que Calino a déjà synchronisé et retélécharge vos calendriers et contacts depuis le serveur. Vos comptes, mots de passe et paramètres sont conservés. À utiliser si quelque chose semble obsolète.",
+      "confirm": "Tout resynchroniser depuis vos serveurs ? Les comptes et paramètres sont conservés, et les modifications de cet appareil pas encore synchronisées sont toujours envoyées. Les événements et contacts qui n’existent que sur cet appareil ne sont pas supprimés.",
+      "action": "Resynchroniser",
+      "running": "Resynchronisation…",
+      "done": "Resynchronisation terminée",
+      "failed": "La resynchronisation s’est terminée avec des erreurs. Vérifiez votre connexion et réessayez."
     },
     "resetApp": {
       "label": "Réinitialiser Calino sur cet appareil",

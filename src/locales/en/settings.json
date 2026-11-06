@@ -21,6 +21,14 @@
   "saved": "Saved",
   "general": {
     "title": "General",
+    "homeTimezone": {
+      "label": "Home timezone",
+      "desc": "Events are shown and created in this zone. Automatic follows the browser.",
+      "ariaLabel": "Home timezone",
+      "automatic": "Automatic (browser)",
+      "search": "Search time zones",
+      "noResults": "No matching time zone"
+    },
     "dateFormat": {
       "label": "Date Format",
       "desc": "How dates appear throughout the app",
@@ -270,7 +278,10 @@
       "15minBefore": "15 minutes before",
       "30minBefore": "30 minutes before",
       "1hourBefore": "1 hour before",
-      "1dayBefore": "1 day before"
+      "1dayBefore": "1 day before",
+      "custom": "Custom…",
+      "customAriaLabel": "Custom default reminder value",
+      "customUnitAriaLabel": "Custom default reminder unit"
     }
   },
   "conflict": {
@@ -400,6 +411,41 @@
         "meetsAA": "Colours meet WCAG AA.",
         "needsAttention": "Contrast needs attention",
         "looksGood": "Contrast looks good"
+      }
+    },
+    "categoryStyles": {
+      "title": "Style by category",
+      "description": "Give events a visual style based on their categories. Changes save automatically.",
+      "reset": "Restore defaults",
+      "newRule": "New rule",
+      "disabled": "Disabled",
+      "addRule": "Add rule",
+      "enabled": "Enabled",
+      "categories": "Match any category",
+      "matchHint": "Comma separated · exact names · ignores case",
+      "style": "Style",
+      "lettering": "Lettering",
+      "accent": "Accent",
+      "earlier": "↑ Earlier",
+      "later": "↓ Later",
+      "remove": "Remove",
+      "empty": "No rules. Add a rule or restore the defaults.",
+      "precedence": "Matching rules combine. For the same property, the lower rule wins. Calendar colours stay visible unless a rule changes the fill. These are visual styles; they do not change an event’s status or completion.",
+      "suggestions": "More styles to try",
+      "sample": "Review with Alex",
+      "noCategories": "No categories yet",
+      "treatments": {
+        "tentative": "Pencil – grey & tentative",
+        "important": "Sketch – hand-drawn outline",
+        "focus": "Quiet – dashed border",
+        "travel": "On the move – diagonal texture",
+        "deadline": "Marker – underline",
+        "done": "Finished – strike through"
+      },
+      "fonts": {
+        "inherit": "Keep existing",
+        "hand": "Handwritten",
+        "standard": "Standard"
       }
     }
   },
@@ -614,6 +660,16 @@
       "confirm": "Delete all events stored on this device? Events on your server are not deleted and may reappear after the next sync. This cannot be undone.",
       "action": "Delete local events",
       "confirmCalendar": "Delete all events in “{{name}}” from this device? Events on your server are not deleted and may reappear after the next sync. This cannot be undone."
+    },
+    "resync": {
+      "group": "Sync",
+      "label": "Resync From Server",
+      "desc": "Forget what Calino has already synced and download your calendars and contacts again from the server. Your accounts, passwords and settings are kept. Use this if something looks out of date.",
+      "confirm": "Resync everything from your servers? Accounts and settings are kept, and changes made on this device that have not synced yet are still sent. Events and contacts that exist only on this device are not removed.",
+      "action": "Resync",
+      "running": "Resyncing…",
+      "done": "Resync complete",
+      "failed": "Resync finished with errors. Check your connection and try again."
     },
     "resetApp": {
       "label": "Reset Calino on This Device",

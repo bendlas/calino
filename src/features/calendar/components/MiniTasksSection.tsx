@@ -5,12 +5,14 @@ import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { DUR_FAST, EASE_OUT } from '@/lib/motion'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router'
-import { parseISO, isToday, isBefore, startOfDay } from 'date-fns'
+import { parseISO } from 'date-fns'
+import { homeDayKey, storedDayKey } from '@/lib/homeTimezone'
 import { useTranslation } from 'react-i18next'
 import { formatDayMonth } from '@/lib/datetime'
 import { useCalendarStore } from '@/store/calendarStore'
 import { useCalDAV } from '@/features/caldav/hooks/useCalDAV'
 import { resolveRecurringTasks } from '@/lib/openTasks'
+import { compareTaskSortOrder } from '@/lib/taskSortOrder'
 import { useContextMenuStore } from '@/store/contextMenuStore'
 import { hapticIfEnabled } from '@/lib/haptics'
 import { completeTaskAndSync } from '@/lib/taskCompletion'
@@ -66,7 +68,9 @@ export function MiniTasksSection({ isExpanded, onToggle }: MiniTasksSectionProps
   // minute (the `nowTick` interval above). Together they keep "today"
   // current without the user having to interact with the app.
   const upcomingTasks = useMemo(() => {
-    const today = startOfDay(new Date())
+    const todayKey = homeDayKey(new Date())
+    const dueKey = (task: { dueDate?: string; timezone?: string; isAllDay?: boolean }) =>
+      task.dueDate ? storedDayKey(task.dueDate, task.timezone, task.isAllDay) : null
     const visibleCalendarIds = new Set(
       calendars.filter((calendar) => calendar.isVisible).map((calendar) => calendar.id)
     )
@@ -85,14 +89,17 @@ export function MiniTasksSection({ isExpanded, onToggle }: MiniTasksSectionProps
       )
       .filter((task) => {
         if (!task.dueDate) return true // Show tasks without due date
-        const dueDate = startOfDay(parseISO(task.dueDate))
-        return !isBefore(dueDate, today) // Show all future tasks
+        const key = dueKey(task)
+        return key == null || key >= todayKey
       })
       .sort((a, b) => {
-        if (!a.dueDate && !b.dueDate) return 0
+        if (!a.dueDate && !b.dueDate) return compareTaskSortOrder(a, b)
         if (!a.dueDate) return 1 // No due date goes to end
         if (!b.dueDate) return -1
-        return parseISO(a.dueDate).getTime() - parseISO(b.dueDate).getTime()
+        return (
+          parseISO(a.dueDate).getTime() - parseISO(b.dueDate).getTime() ||
+          compareTaskSortOrder(a, b)
+        )
       })
       .slice(0, 8)
 
@@ -105,13 +112,15 @@ export function MiniTasksSection({ isExpanded, onToggle }: MiniTasksSectionProps
           visibleCalendarIds.has(e.calendarId)
       )
       .filter((task) => {
-        if (!task.dueDate) return false
-        const dueDate = startOfDay(parseISO(task.dueDate))
-        return isBefore(dueDate, today)
+        const key = dueKey(task)
+        return key != null && key < todayKey
       })
       .sort((a, b) => {
         if (!a.dueDate || !b.dueDate) return 0
-        return parseISO(a.dueDate).getTime() - parseISO(b.dueDate).getTime()
+        return (
+          parseISO(a.dueDate).getTime() - parseISO(b.dueDate).getTime() ||
+          compareTaskSortOrder(a, b)
+        )
       })
       .slice(0, 5)
 
@@ -422,12 +431,14 @@ export function MiniTasksSection({ isExpanded, onToggle }: MiniTasksSectionProps
                         <span
                           data-component="task-due-date"
                           className={`${styles.taskDue} ${
-                            isBefore(startOfDay(parseISO(task.dueDate)), startOfDay(new Date()))
+                            storedDayKey(task.dueDate, task.timezone, task.isAllDay) <
+                            homeDayKey(new Date())
                               ? styles.taskOverdue
                               : ''
                           }`}
                         >
-                          {isToday(parseISO(task.dueDate))
+                          {storedDayKey(task.dueDate, task.timezone, task.isAllDay) ===
+                          homeDayKey(new Date())
                             ? t('modals.miniTasks.today')
                             : formatDayMonth(task.dueDate)}
                         </span>

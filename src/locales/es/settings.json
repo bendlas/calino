@@ -21,6 +21,14 @@
   "saved": "Guardado",
   "general": {
     "title": "General",
+    "homeTimezone": {
+      "label": "Zona horaria local",
+      "desc": "Los eventos se muestran y crean en esta zona. Automático sigue al navegador.",
+      "ariaLabel": "Zona horaria local",
+      "automatic": "Automático (navegador)",
+      "search": "Buscar zonas horarias",
+      "noResults": "Ninguna zona horaria coincide"
+    },
     "dateFormat": {
       "label": "Formato de fecha",
       "desc": "Cómo aparecen las fechas en la aplicación",
@@ -270,7 +278,10 @@
       "15minBefore": "15 minutos antes",
       "30minBefore": "30 minutos antes",
       "1hourBefore": "1 hora antes",
-      "1dayBefore": "1 día antes"
+      "1dayBefore": "1 día antes",
+      "custom": "Personalizado…",
+      "customAriaLabel": "Valor personalizado del recordatorio predeterminado",
+      "customUnitAriaLabel": "Unidad del recordatorio predeterminado personalizado"
     }
   },
   "conflict": {
@@ -400,6 +411,41 @@
         "meetsAA": "Los colores cumplen el nivel WCAG AA.",
         "needsAttention": "El contraste necesita atención",
         "looksGood": "El contraste es adecuado"
+      }
+    },
+    "categoryStyles": {
+      "title": "Estilo por categoría",
+      "description": "Da un estilo visual a los eventos según sus categorías. Los cambios se guardan automáticamente.",
+      "reset": "Restaurar valores",
+      "newRule": "Nueva regla",
+      "disabled": "Desactivada",
+      "addRule": "Añadir regla",
+      "enabled": "Activada",
+      "categories": "Coincidir con alguna categoría",
+      "matchHint": "Separadas por comas · nombres exactos · sin distinguir mayúsculas",
+      "style": "Estilo",
+      "lettering": "Tipografía",
+      "accent": "Acento",
+      "earlier": "↑ Antes",
+      "later": "↓ Después",
+      "remove": "Eliminar",
+      "empty": "Sin reglas. Añade una regla o restaura los valores predeterminados.",
+      "precedence": "Las reglas coincidentes se combinan. Para una misma propiedad, gana la regla inferior. Los colores del calendario se conservan salvo que una regla cambie el fondo. Los estilos visuales no cambian el estado ni la finalización del evento.",
+      "suggestions": "Más estilos para probar",
+      "sample": "Revisión con Alex",
+      "noCategories": "Sin categorías todavía",
+      "treatments": {
+        "tentative": "Lápiz – gris y provisional",
+        "important": "Boceto – contorno a mano",
+        "focus": "Calma – borde discontinuo",
+        "travel": "En movimiento – textura diagonal",
+        "deadline": "Marcador – subrayado",
+        "done": "Terminado – tachado"
+      },
+      "fonts": {
+        "inherit": "Mantener actual",
+        "hand": "A mano",
+        "standard": "Estándar"
       }
     }
   },
@@ -614,6 +660,16 @@
       "confirm": "¿Eliminar todos los eventos almacenados en este dispositivo? Los eventos de tu servidor no se eliminan y pueden reaparecer tras la próxima sincronización. Esta acción no se puede deshacer.",
       "action": "Eliminar eventos locales",
       "confirmCalendar": "¿Eliminar todos los eventos de «{{name}}» de este dispositivo? Los eventos de tu servidor no se eliminan y pueden reaparecer tras la próxima sincronización. Esta acción no se puede deshacer."
+    },
+    "resync": {
+      "group": "Sincronización",
+      "label": "Volver a sincronizar desde el servidor",
+      "desc": "Olvida lo que Calino ya ha sincronizado y vuelve a descargar tus calendarios y contactos desde el servidor. Se conservan tus cuentas, contraseñas y ajustes. Úsalo si algo parece desactualizado.",
+      "confirm": "¿Volver a sincronizar todo desde tus servidores? Se conservan las cuentas y los ajustes, y los cambios de este dispositivo que aún no se hayan sincronizado se siguen enviando. Los eventos y contactos que solo existen en este dispositivo no se eliminan.",
+      "action": "Volver a sincronizar",
+      "running": "Sincronizando…",
+      "done": "Sincronización completada",
+      "failed": "La sincronización terminó con errores. Comprueba tu conexión e inténtalo de nuevo."
     },
     "resetApp": {
       "label": "Restablecer Calino en este dispositivo",

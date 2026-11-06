@@ -13,20 +13,27 @@ import type {
   CalendarOrganizer,
 } from '@/types'
 import { useSettingsStore } from '@/store/settingsStore'
-import { useScrollInput } from '@/hooks/useScrollInput'
-import { daysBetween, addDays, deviceTimezone, getDateFnsLocale } from '@/lib/datetime'
+import { daysBetween, addDays, getDateFnsLocale } from '@/lib/datetime'
+import {
+  MAX_REMINDER_MINUTES,
+  parseReminderInput,
+  REMINDER_UNITS,
+  type ReminderUnit,
+} from '@/lib/reminderUnits'
+import { homeTimezone, parseHomeWall } from '@/lib/homeTimezone'
 import { format } from 'date-fns'
 import { formatInTimeZone } from 'date-fns-tz'
 import { normalizeTzid } from '@/lib/timezoneRegistry'
 import { AttachmentSection } from './AttachmentSection'
 import { AttendeeSection } from './AttendeeSection'
+import { DateField } from './DateField'
 import { TimeField } from './TimeField'
 import { RecurrenceFields, RecurrenceToggle } from './RecurrenceFields'
 import styles from './EventModal.module.css'
 
 /**
- * The event's own times, for a series anchored in a zone other than the
- * device's. The form's fields are device-local, so this is the same moment
+ * The event's own times, for a series anchored in a zone other than home.
+ * The form's fields are home-zone wall clocks, so this is the same moment
  * read on the event's clock — what actually moves when the fields change.
  * Returns null when there is nothing to disambiguate.
  */
@@ -41,10 +48,10 @@ function foreignZoneTimes(
 ): { zoneLabel: string; times: string } | null {
   if (!eventTimezone || isAllDay) return null
   const calculationTimezone = normalizeTzid(eventTimezone)
-  if (calculationTimezone === normalizeTzid(deviceTimezone())) return null
+  if (calculationTimezone === normalizeTzid(homeTimezone())) return null
 
-  const startInstant = new Date(`${startDate}T${startTime}:00`)
-  const endInstant = new Date(`${endDate}T${endTime}:00`)
+  const startInstant = parseHomeWall(`${startDate}T${startTime}:00`)
+  const endInstant = parseHomeWall(`${endDate}T${endTime}:00`)
   if (Number.isNaN(startInstant.getTime()) || Number.isNaN(endInstant.getTime())) return null
 
   const pattern = timeFormat === '24h' ? 'HH:mm' : 'h:mm a'
@@ -75,7 +82,7 @@ function foreignZoneTimes(
 interface EventFormFieldsProps {
   /**
    * The event's own TZID, when it has one. The date/time fields always work in
-   * the device zone, so a foreign TZID is otherwise invisible: editing a 09:00
+   * the home zone, so a foreign TZID is otherwise invisible: editing a 09:00
    * Los Angeles meeting from Copenhagen shows 18:00 with nothing saying what
    * is actually being moved. Shown as a read-only line under the fields.
    */
@@ -148,7 +155,15 @@ const TRAVEL_DURATION_VALUES: (number | undefined)[] = [
   120,
 ]
 
-const REMINDER_VALUES: number[] = [0, 5, 10, 15, 30, 60, 120, 1440]
+const REMINDER_VALUES: number[] = [0, 5, 10, 15, 30, 60, 120, 240, 1440]
+
+/** Unit-select labels for the custom reminder input, keyed by ReminderUnit. */
+const REMINDER_UNIT_LABEL_KEYS: Record<ReminderUnit, string> = {
+  minutes: 'modals.eventForm.reminder.unitMinutes',
+  hours: 'modals.eventForm.reminder.unitHours',
+  days: 'modals.eventForm.reminder.unitDays',
+  weeks: 'modals.eventForm.reminder.unitWeeks',
+}
 
 /** Renders a travel-duration select option's label, e.g. "45 min" / "1.5 hours". */
 function travelDurationLabel(value: number | undefined, t: TFunction): string {
@@ -231,20 +246,22 @@ export function EventFormFields({
   const [reminderMenuPos, setReminderMenuPos] = useState({ top: 0, left: 0 })
   const reminderAddBtnRef = useRef<HTMLButtonElement>(null)
   const reminderMenuRef = useRef<HTMLDivElement>(null)
+  // Custom reminder entry: a "+ Add → Custom…" panel with a number + unit
+  // pair, collapsed to minutes on add.
+  const [customReminderOpen, setCustomReminderOpen] = useState(false)
+  const [customReminderValue, setCustomReminderValue] = useState('')
+  const [customReminderUnit, setCustomReminderUnit] = useState<ReminderUnit>('minutes')
   const firstDayOfWeek = useSettingsStore((state) => state.firstDayOfWeek)
   const timeFormat = useSettingsStore((state) => state.timeFormat)
   const defaultDuration = useSettingsStore((state) => state.defaultDuration)
-
-  const startDateRef = useRef<HTMLInputElement>(null)
-  const endDateRef = useRef<HTMLInputElement>(null)
-  useScrollInput([startDateRef, endDateRef])
 
   const setAdvancedOpen = (open: boolean): void => {
     setMoreOpen(open)
   }
 
   // Close reminder dropdown on outside click. The menu is portaled to
-  // document.body, so it's outside the button's subtree — check both.
+  // document.body, so it's outside the button's subtree — check both. A close
+  // also collapses the custom panel so the next open starts from the presets.
   useEffect(() => {
     if (!reminderDropdownOpen) return
     const handleClick = (e: MouseEvent): void => {
@@ -254,11 +271,28 @@ export function EventFormFields({
         !reminderMenuRef.current?.contains(target)
       ) {
         setReminderDropdownOpen(false)
+        setCustomReminderOpen(false)
       }
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [reminderDropdownOpen])
+
+  const customReminderMinutes = parseReminderInput(customReminderValue, customReminderUnit)
+  const customReminderDuplicate =
+    customReminderMinutes !== null && reminders.some((r) => r.minutesBefore === customReminderMinutes)
+  const customReminderReady = customReminderMinutes !== null && !customReminderDuplicate
+
+  const addCustomReminder = (): void => {
+    if (customReminderMinutes === null || customReminderDuplicate) return
+    onRemindersChange([
+      ...reminders,
+      { id: createUuid(), minutesBefore: customReminderMinutes, method: 'popup' },
+    ])
+    setCustomReminderOpen(false)
+    setCustomReminderValue('')
+    setReminderDropdownOpen(false)
+  }
 
   // When the user toggles the Recurring checkbox on, also open the
   // "More" panel so the recurrence controls are visible. This is a
@@ -279,13 +313,10 @@ export function EventFormFields({
             {t('modals.eventForm.start')}
           </label>
           <div className={styles.dateTimeInputs}>
-            <input
-              type="date"
-              ref={startDateRef}
+            <DateField
               id={startDateId}
               value={startDate}
-              onChange={(e) => {
-                const newDate = e.target.value
+              onChange={(newDate) => {
                 if (!newDate) return
                 // Shift the end date by the same number of days the start date
                 // moved, so the event's span (and therefore start<=end) is
@@ -299,7 +330,7 @@ export function EventFormFields({
                 onEndDateChange(addDays(endDate, dayDelta))
               }}
               className={styles.input}
-              data-component="event-start-date"
+              dataComponent="event-start-date"
               required
             />
             {!isAllDay && (
@@ -340,14 +371,12 @@ export function EventFormFields({
             {t('modals.eventForm.end')}
           </label>
           <div className={styles.dateTimeInputs}>
-            <input
-              type="date"
-              ref={endDateRef}
+            <DateField
               id={endDateId}
               value={endDate}
-              onChange={(e) => onEndDateChange(e.target.value)}
+              onChange={onEndDateChange}
               className={styles.input}
-              data-component="event-end-date"
+              dataComponent="event-end-date"
               required
             />
             {!isAllDay && (
@@ -507,7 +536,11 @@ export function EventFormFields({
               ) : (
                 <div className={styles.reminderList}>
                   {reminders.map((reminder) => (
-                    <span key={reminder.id} className={styles.reminderChip}>
+                    <span
+                      key={reminder.id}
+                      className={styles.reminderChip}
+                      data-component="reminder-chip"
+                    >
                       {reminderLabel(reminder.minutesBefore, t)}
                       <button
                         type="button"
@@ -546,39 +579,112 @@ export function EventFormFields({
                         <div
                           ref={reminderMenuRef}
                           className={styles.reminderDropdown}
-                          role="listbox"
                           style={{
                             position: 'fixed',
                             top: reminderMenuPos.top,
                             left: reminderMenuPos.left,
                           }}
                         >
-                          {REMINDER_VALUES.filter(
-                            (value) => !reminders.some((r) => r.minutesBefore === value)
-                          ).map((value) => (
-                            <button
-                              key={value}
-                              type="button"
-                              className={styles.reminderDropdownItem}
-                              role="option"
-                              onClick={() => {
-                                onRemindersChange([
-                                  ...reminders,
-                                  { id: createUuid(), minutesBefore: value, method: 'popup' },
-                                ])
-                                setReminderDropdownOpen(false)
-                              }}
-                            >
-                              {reminderLabel(value, t)}
-                            </button>
-                          ))}
-                          {REMINDER_VALUES.every((value) =>
-                            reminders.some((r) => r.minutesBefore === value)
-                          ) && (
-                            <div className={styles.reminderDropdownEmpty}>
-                              {t('modals.eventForm.allOptionsAdded')}
-                            </div>
-                          )}
+                          <div role="listbox" aria-label={t('modals.eventForm.reminders')}>
+                            {REMINDER_VALUES.filter(
+                              (value) => !reminders.some((r) => r.minutesBefore === value)
+                            ).map((value) => (
+                              <button
+                                key={value}
+                                type="button"
+                                className={styles.reminderDropdownItem}
+                                role="option"
+                                onClick={() => {
+                                  onRemindersChange([
+                                    ...reminders,
+                                    { id: createUuid(), minutesBefore: value, method: 'popup' },
+                                  ])
+                                  setReminderDropdownOpen(false)
+                                  setCustomReminderOpen(false)
+                                }}
+                              >
+                                {reminderLabel(value, t)}
+                              </button>
+                            ))}
+                            {REMINDER_VALUES.every((value) =>
+                              reminders.some((r) => r.minutesBefore === value)
+                            ) && (
+                              <div className={styles.reminderDropdownEmpty}>
+                                {t('modals.eventForm.allOptionsAdded')}
+                              </div>
+                            )}
+                          </div>
+                          {/* Custom entry lives outside the listbox: it is a
+                              small form, not an option. */}
+                          <div className={styles.reminderCustomSection}>
+                            {customReminderOpen ? (
+                              <>
+                                <div className={styles.reminderCustomRow}>
+                                  <input
+                                    type="number"
+                                    className={styles.reminderCustomInput}
+                                    value={customReminderValue}
+                                    min={0}
+                                    max={MAX_REMINDER_MINUTES}
+                                    step={1}
+                                    aria-label={t('modals.eventForm.reminder.customInputAria')}
+                                    data-component="reminder-custom-input"
+                                    autoFocus
+                                    onChange={(e) => setCustomReminderValue(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') {
+                                        e.preventDefault()
+                                        if (customReminderReady) addCustomReminder()
+                                      }
+                                    }}
+                                  />
+                                  <select
+                                    className={styles.reminderCustomUnit}
+                                    value={customReminderUnit}
+                                    aria-label={t('modals.eventForm.reminder.customUnitAria')}
+                                    data-component="reminder-custom-unit"
+                                    onChange={(e) =>
+                                      setCustomReminderUnit(e.target.value as ReminderUnit)
+                                    }
+                                  >
+                                    {REMINDER_UNITS.map((unit) => (
+                                      <option key={unit.id} value={unit.id}>
+                                        {t(REMINDER_UNIT_LABEL_KEYS[unit.id])}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <button
+                                    type="button"
+                                    className={styles.reminderCustomAdd}
+                                    disabled={!customReminderReady}
+                                    data-component="reminder-custom-add"
+                                    onClick={addCustomReminder}
+                                  >
+                                    {t('modals.eventForm.reminder.customAdd')}
+                                  </button>
+                                </div>
+                                {customReminderValue !== '' && customReminderMinutes === null && (
+                                  <div
+                                    className={styles.reminderCustomInvalid}
+                                    data-component="reminder-custom-invalid"
+                                  >
+                                    {t('modals.eventForm.reminder.customInvalid', {
+                                      max: MAX_REMINDER_MINUTES,
+                                    })}
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <button
+                                type="button"
+                                className={styles.reminderDropdownItem}
+                                data-component="reminder-custom-toggle"
+                                onClick={() => setCustomReminderOpen(true)}
+                              >
+                                {t('modals.eventForm.reminder.custom')}
+                              </button>
+                            )}
+                          </div>
                         </div>,
                         document.body
                       )}

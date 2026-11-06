@@ -43,6 +43,9 @@
       "weekTasksAriaLabel": "Taken voor week {{number}}",
       "weekTasksEmpty": "Nog niets gepland voor deze week"
     },
+    "homeTimezone": {
+      "title": "Tijden getoond in {{zone}}"
+    },
     "day": {
       "backToAgenda": "Terug naar agenda"
     },
@@ -202,6 +205,9 @@
     "navCreate": "Maken",
     "navBackToCalendar": "Terug naar agenda",
     "agendaMakeSubtask": "Omzetten in subtaak",
+    "agendaCannotSubtaskRepeatingParent": "Herhalende taken kunnen geen subtaken hebben",
+    "agendaCannotSubtaskRepeatingTask": "Herhalende taken kunnen geen subtaak zijn",
+    "agendaCannotSubtaskCycle": "Een taak kan niet in zijn eigen subtaak",
     "agendaDue": "Vervaldatum",
     "agendaAllDay": "Hele dag",
     "today": "Vandaag",
@@ -405,6 +411,7 @@
     "eventForm": {
       "start": "Begin",
       "startTime": "Begintijd",
+      "pickDate": "Kies datum",
       "end": "Einde",
       "endTime": "Eindtijd",
       "foreignZoneTimes": "{{times}} in {{zone}}",
@@ -440,7 +447,16 @@
         "hoursBefore_one": "{{count}} uur van tevoren",
         "hoursBefore_other": "{{count}} uur van tevoren",
         "daysBefore_one": "{{count}} dag van tevoren",
-        "daysBefore_other": "{{count}} dagen van tevoren"
+        "daysBefore_other": "{{count}} dagen van tevoren",
+        "custom": "Aangepast…",
+        "customInputAria": "Aangepaste herinnering",
+        "customUnitAria": "Eenheid van aangepaste herinnering",
+        "customAdd": "Toevoegen",
+        "customInvalid": "Voer een geheel getal tussen 0 en {{max}} minuten in.",
+        "unitMinutes": "Minuten",
+        "unitHours": "Uren",
+        "unitDays": "Dagen",
+        "unitWeeks": "Weken"
       }
     },
     "eventCard": {
@@ -655,6 +671,8 @@
     "task": {
       "markDone": "Markeren als gedaan",
       "markNotDone": "Markeren als niet gedaan",
+      "moveUp": "Omhoog",
+      "moveDown": "Omlaag",
       "priority": {
         "none": "Geen",
         "high": "Hoog",

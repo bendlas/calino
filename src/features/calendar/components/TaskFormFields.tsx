@@ -2,13 +2,14 @@ import type { JSX } from 'react'
 import { useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { format, parseISO, subDays } from 'date-fns'
+import { homeDayKey } from '@/lib/homeTimezone'
 import { WEEK_TASK_MIN_DAYS, taskSpanDays, weekRangeKeys } from '@/lib/weekTasks'
 import type { CalendarEvent, TaskPriority } from '@/types'
 import type { TaskTreeItem } from '@/lib/taskTree'
 import { TaskCollapseToggle } from './TaskCollapseToggle'
-import { useScrollInput } from '@/hooks/useScrollInput'
 import { useSettingsStore } from '@/store/settingsStore'
 import styles from './EventModal.module.css'
+import { DateField } from './DateField'
 import { TimeField } from './TimeField'
 import { RecurrenceFields, RecurrenceToggle, type RecurrenceFieldsProps } from './RecurrenceFields'
 
@@ -111,12 +112,10 @@ export function TaskFormFields({
   recurrence: recurrenceProps,
 }: TaskFormFieldsProps): JSX.Element {
   const { t } = useTranslation('calendar')
-  const dueDateRef = useRef<HTMLInputElement>(null)
   const timeFormat = useSettingsStore((state) => state.timeFormat)
   const firstDayOfWeek = useSettingsStore((state) => state.firstDayOfWeek)
   const parentTask = parentTasks.find((task) => task.id === parentTaskId)
   const hasDueDate = dueDate.trim().length > 0
-  useScrollInput([dueDateRef])
 
   const dueMode: DueMode = !hasDueDate ? 'none' : dueAllDay ? 'dateOnly' : 'datetime'
   const dueModeControlRef = useRef<HTMLDivElement>(null)
@@ -146,7 +145,7 @@ export function TaskFormFields({
       onDueDateChange('')
       return
     }
-    if (!hasDueDate) onDueDateChange(format(new Date(), 'yyyy-MM-dd'))
+    if (!hasDueDate) onDueDateChange(homeDayKey(new Date()))
     onDueAllDayChange(mode === 'dateOnly')
   }
 
@@ -159,7 +158,7 @@ export function TaskFormFields({
 
   const handleAddStartDate = (): void => {
     // Default to the day before the due date so the new field is a valid range.
-    const due = hasDueDate ? dueDay : format(new Date(), 'yyyy-MM-dd')
+    const due = hasDueDate ? dueDay : homeDayKey(new Date())
     if (!hasDueDate) {
       onDueDateChange(due)
       onDueAllDayChange(true)
@@ -168,7 +167,7 @@ export function TaskFormFields({
   }
 
   const handleSometimeThisWeek = (): void => {
-    const base = hasDueDate ? dueDay : format(new Date(), 'yyyy-MM-dd')
+    const base = hasDueDate ? dueDay : homeDayKey(new Date())
     const { startKey, dueKey } = weekRangeKeys(base, firstDayOfWeek)
     onStartDateChange(startKey)
     onDueDateChange(dueKey)
@@ -336,12 +335,11 @@ export function TaskFormFields({
             <label className={styles.label} htmlFor="task-start-date">
               {t('modals.eventModal.taskStartDate')}
             </label>
-            <input
-              type="date"
+            <DateField
               id="task-start-date"
               value={startDate}
               max={hasDueDate ? dueDay : undefined}
-              onChange={(e) => onStartDateChange(e.target.value)}
+              onChange={onStartDateChange}
               className={styles.input}
             />
           </div>
@@ -352,12 +350,10 @@ export function TaskFormFields({
               <label className={styles.label} htmlFor="due-date">
                 {t('ui.task.dueDate')}
               </label>
-              <input
-                type="date"
+              <DateField
                 id="due-date"
-                ref={dueDateRef}
-                value={dueDate.split('T')[0]}
-                onChange={(e) => onDueDateChange(e.target.value)}
+                value={dueDate.split('T')[0]!}
+                onChange={onDueDateChange}
                 className={styles.input}
               />
             </div>

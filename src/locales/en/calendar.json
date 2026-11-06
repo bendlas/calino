@@ -43,6 +43,9 @@
       "weekTasksAriaLabel": "Tasks for week {{number}}",
       "weekTasksEmpty": "Nothing planned for this week yet"
     },
+    "homeTimezone": {
+      "title": "Times shown in {{zone}}"
+    },
     "day": {
       "backToAgenda": "Back to agenda"
     },
@@ -202,6 +205,9 @@
     "navCreate": "Create",
     "navBackToCalendar": "Back to calendar",
     "agendaMakeSubtask": "Make subtask",
+    "agendaCannotSubtaskRepeatingParent": "Repeating tasks can't have subtasks",
+    "agendaCannotSubtaskRepeatingTask": "Repeating tasks can't be subtasks",
+    "agendaCannotSubtaskCycle": "Can't nest a task inside its own subtask",
     "agendaDue": "Due",
     "agendaAllDay": "All day",
     "today": "Today",
@@ -405,6 +411,7 @@
     "eventForm": {
       "start": "Start",
       "startTime": "Start time",
+      "pickDate": "Choose date",
       "end": "End",
       "endTime": "End time",
       "foreignZoneTimes": "{{times}} in {{zone}}",
@@ -440,7 +447,16 @@
         "hoursBefore_one": "{{count}} hour before",
         "hoursBefore_other": "{{count}} hours before",
         "daysBefore_one": "{{count}} day before",
-        "daysBefore_other": "{{count}} days before"
+        "daysBefore_other": "{{count}} days before",
+        "custom": "Custom…",
+        "customInputAria": "Custom reminder",
+        "customUnitAria": "Custom reminder unit",
+        "customAdd": "Add",
+        "customInvalid": "Enter a whole number between 0 and {{max}} minutes.",
+        "unitMinutes": "Minutes",
+        "unitHours": "Hours",
+        "unitDays": "Days",
+        "unitWeeks": "Weeks"
       }
     },
     "eventCard": {
@@ -655,6 +671,8 @@
     "task": {
       "markDone": "Mark as done",
       "markNotDone": "Mark as not done",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
       "priority": {
         "none": "None",
         "high": "High",

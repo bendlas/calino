@@ -10,8 +10,8 @@ import {
   toEventInstant,
   daysBetween,
   addDays,
-  deviceTimezone,
 } from '@/lib/datetime'
+import { homeTimezone, useHomeTimezone } from '@/lib/homeTimezone'
 import { buildMasterTruncation } from '@/lib/recurrenceSplit'
 import { materializeOccurrenceAt } from '@/lib/occurrenceExpansion'
 import { showToast } from '@/lib/toast'
@@ -53,6 +53,7 @@ export function EventPreviewPopup({
   clickedEventId,
 }: EventPreviewPopupProps): JSX.Element {
   const { t } = useTranslation(['calendar', 'common'])
+  useHomeTimezone()
   const popupRef = useRef<HTMLDivElement>(null)
   const timeFormat = useSettingsStore((state) => state.timeFormat)
   const dateFormat = useSettingsStore((state) => state.dateFormat)
@@ -498,7 +499,10 @@ export function EventPreviewPopup({
         occurrenceStartISO
       )
       updateEvent(masterEvent.id, { excludedDates, recurrence, rruleString })
-      safeCalDAVUpdate(
+      // Wait for the truncation to land before creating the new series: while
+      // it is still in flight the two share a store `resourceHref`, and the
+      // group write would put both UIDs into one PUT (#229).
+      await safeCalDAVUpdate(
         updateCalDAVEvent,
         masterEvent.calendarId,
         { ...masterEvent, excludedDates, recurrence, rruleString },
@@ -535,6 +539,12 @@ export function EventPreviewPopup({
         // the master's CREATED. `addEvent` stamps the real time below.
         created: undefined,
         lastModified: undefined,
+        // Server identity belongs to the master's resource. Inheriting it makes
+        // the new series look like another component of that resource, and
+        // RFC 4791 §4.1 allows one UID per resource (#229).
+        resourceHref: undefined,
+        etag: undefined,
+        syncStatus: undefined,
       }
       store.addEvent(newSeriesEvent)
       try {
@@ -1211,7 +1221,7 @@ export function EventPreviewPopup({
                     {/* Times above are shown in the device zone. An event
                         anchored elsewhere says so, matching the badge
                         EventCard already renders in the grid. */}
-                    {event.timezone && event.timezone !== deviceTimezone() && (
+                    {event.timezone && event.timezone !== homeTimezone() && (
                       <span className={styles.tzBadge}>{event.timezone}</span>
                     )}
                   </div>

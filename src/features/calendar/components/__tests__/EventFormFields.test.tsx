@@ -92,8 +92,15 @@ describe('EventFormFields', () => {
           firstDayOfWeek: number
           timeFormat: '24h'
           defaultDuration: number
+          dateFormat: 'dd/MM/yyyy'
         }) => unknown
-      ) => selector({ firstDayOfWeek: 0, timeFormat: '24h', defaultDuration: 60 })
+      ) =>
+        selector({
+          firstDayOfWeek: 0,
+          timeFormat: '24h',
+          defaultDuration: 60,
+          dateFormat: 'dd/MM/yyyy',
+        })
     )
   })
 
@@ -150,7 +157,10 @@ describe('EventFormFields', () => {
 
   describe('weekday selection with firstDayOfWeek=1 (Monday)', () => {
     beforeEach(() => {
-      ;(useSettingsStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue(1)
+      ;(useSettingsStore as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+        (selector: (state: { dateFormat: 'dd/MM/yyyy' }) => unknown) =>
+          selector({ dateFormat: 'dd/MM/yyyy' }) ?? 1
+      )
     })
 
     it('displays weekdays starting with Monday when firstDayOfWeek is 1', () => {
@@ -309,7 +319,10 @@ describe('EventFormFields', () => {
     })
 
     it('uses Monday-first weekday order when firstDayOfWeek is 1', () => {
-      ;(useSettingsStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue(1)
+      ;(useSettingsStore as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+        (selector: (state: { dateFormat: 'dd/MM/yyyy' }) => unknown) =>
+          selector({ dateFormat: 'dd/MM/yyyy' }) ?? 1
+      )
       renderWithMoreOptions({
         recurrence: 'monthly',
         byWeekday: [2],
@@ -327,7 +340,10 @@ describe('EventFormFields', () => {
     })
 
     it('correctly maps weekday option values with firstDayOfWeek=1', () => {
-      ;(useSettingsStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue(1)
+      ;(useSettingsStore as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+        (selector: (state: { dateFormat: 'dd/MM/yyyy' }) => unknown) =>
+          selector({ dateFormat: 'dd/MM/yyyy' }) ?? 1
+      )
       const onByWeekdayChange = vi.fn()
       renderWithMoreOptions({
         recurrence: 'monthly',
@@ -556,12 +572,114 @@ describe('EventFormFields', () => {
     })
   })
 
+  describe('custom reminders', () => {
+    const openReminderDropdown = (): void => {
+      fireEvent.click(screen.getByRole('button', { name: /add reminder/i }))
+    }
+
+    it('offers "4 hours before" as a preset', () => {
+      const onRemindersChange = vi.fn()
+      renderWithMoreOptions({ reminders: [], onRemindersChange })
+      openReminderDropdown()
+
+      fireEvent.click(screen.getByRole('option', { name: '4 hours before' }))
+
+      expect(onRemindersChange).toHaveBeenCalledWith([
+        expect.objectContaining({ minutesBefore: 240, method: 'popup' }),
+      ])
+    })
+
+    it('adds a custom reminder in minutes', () => {
+      const onRemindersChange = vi.fn()
+      renderWithMoreOptions({ reminders: [], onRemindersChange })
+      openReminderDropdown()
+
+      fireEvent.click(screen.getByText('Custom…'))
+      fireEvent.change(screen.getByLabelText('Custom reminder'), { target: { value: '90' } })
+      fireEvent.click(
+        document.querySelector('[data-component="reminder-custom-add"]')!
+      )
+
+      expect(onRemindersChange).toHaveBeenCalledWith([
+        expect.objectContaining({ minutesBefore: 90, method: 'popup' }),
+      ])
+    })
+
+    it('adds a custom reminder in days', () => {
+      const onRemindersChange = vi.fn()
+      renderWithMoreOptions({ reminders: [], onRemindersChange })
+      openReminderDropdown()
+
+      fireEvent.click(screen.getByText('Custom…'))
+      fireEvent.change(screen.getByLabelText('Custom reminder'), { target: { value: '2' } })
+      fireEvent.change(screen.getByLabelText('Custom reminder unit'), {
+        target: { value: 'days' },
+      })
+      fireEvent.click(
+        document.querySelector('[data-component="reminder-custom-add"]')!
+      )
+
+      expect(onRemindersChange).toHaveBeenCalledWith([
+        expect.objectContaining({ minutesBefore: 2880, method: 'popup' }),
+      ])
+    })
+
+    it('adds a custom reminder in weeks', () => {
+      const onRemindersChange = vi.fn()
+      renderWithMoreOptions({ reminders: [], onRemindersChange })
+      openReminderDropdown()
+
+      fireEvent.click(screen.getByText('Custom…'))
+      fireEvent.change(screen.getByLabelText('Custom reminder'), { target: { value: '1' } })
+      fireEvent.change(screen.getByLabelText('Custom reminder unit'), {
+        target: { value: 'weeks' },
+      })
+      fireEvent.click(
+        document.querySelector('[data-component="reminder-custom-add"]')!
+      )
+
+      expect(onRemindersChange).toHaveBeenCalledWith([
+        expect.objectContaining({ minutesBefore: 10080, method: 'popup' }),
+      ])
+    })
+
+    it('disables Add when the custom value duplicates an existing chip', () => {
+      renderWithMoreOptions({
+        reminders: [{ id: 'r1', minutesBefore: 240, method: 'popup' }],
+      })
+      openReminderDropdown()
+
+      fireEvent.click(screen.getByText('Custom…'))
+      fireEvent.change(screen.getByLabelText('Custom reminder'), { target: { value: '4' } })
+      fireEvent.change(screen.getByLabelText('Custom reminder unit'), {
+        target: { value: 'hours' },
+      })
+
+      expect(
+        document.querySelector('[data-component="reminder-custom-add"]')
+      ).toBeDisabled()
+    })
+
+    it('disables Add and explains itself for invalid input', () => {
+      renderWithMoreOptions({ reminders: [] })
+      openReminderDropdown()
+
+      fireEvent.click(screen.getByText('Custom…'))
+      fireEvent.change(screen.getByLabelText('Custom reminder'), { target: { value: '1.5' } })
+
+      expect(
+        document.querySelector('[data-component="reminder-custom-add"]')
+      ).toBeDisabled()
+      expect(screen.getByText(/whole number between 0 and 40320/)).toBeInTheDocument()
+    })
+  })
+
   describe('date field accessible names', () => {
     it('exposes the start and end date inputs via their associated labels', () => {
       render(<EventFormFields {...defaultProps} />)
 
-      expect(screen.getByLabelText('Start')).toHaveValue('2024-03-15')
-      expect(screen.getByLabelText('End')).toHaveValue('2024-03-15')
+      expect(screen.getByLabelText('Start')).toHaveValue('15/03/2024')
+      expect(screen.getByLabelText('End')).toHaveValue('15/03/2024')
     })
   })
 })

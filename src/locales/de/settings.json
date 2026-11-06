@@ -21,6 +21,14 @@
   "saved": "Gespeichert",
   "general": {
     "title": "Allgemein",
+    "homeTimezone": {
+      "label": "Heimatzeitzone",
+      "desc": "Termine werden in dieser Zeitzone angezeigt und erstellt. Automatisch folgt dem Browser.",
+      "ariaLabel": "Heimatzeitzone",
+      "automatic": "Automatisch (Browser)",
+      "search": "Zeitzonen suchen",
+      "noResults": "Keine passende Zeitzone"
+    },
     "dateFormat": {
       "label": "Datumsformat",
       "desc": "So werden Datumsangaben in der App angezeigt",
@@ -270,7 +278,10 @@
       "15minBefore": "15 Minuten vorher",
       "30minBefore": "30 Minuten vorher",
       "1hourBefore": "1 Stunde vorher",
-      "1dayBefore": "1 Tag vorher"
+      "1dayBefore": "1 Tag vorher",
+      "custom": "Benutzerdefiniert…",
+      "customAriaLabel": "Benutzerdefinierter Wert der Standarderinnerung",
+      "customUnitAriaLabel": "Einheit der benutzerdefinierten Standarderinnerung"
     }
   },
   "conflict": {
@@ -400,6 +411,41 @@
         "meetsAA": "Die Farben erfüllen WCAG AA.",
         "needsAttention": "Kontrast erfordert Aufmerksamkeit",
         "looksGood": "Kontrast ist gut"
+      }
+    },
+    "categoryStyles": {
+      "title": "Stil nach Kategorie",
+      "description": "Ereignisse nach ihren Kategorien gestalten. Änderungen werden automatisch gespeichert.",
+      "reset": "Standard wiederherstellen",
+      "newRule": "Neue Regel",
+      "disabled": "Deaktiviert",
+      "addRule": "Regel hinzufügen",
+      "enabled": "Aktiviert",
+      "categories": "Eine dieser Kategorien abgleichen",
+      "matchHint": "Kommagetrennt · genaue Namen · Groß-/Kleinschreibung wird ignoriert",
+      "style": "Stil",
+      "lettering": "Schrift",
+      "accent": "Akzent",
+      "earlier": "↑ Früher",
+      "later": "↓ Später",
+      "remove": "Entfernen",
+      "empty": "Keine Regeln. Eine Regel hinzufügen oder den Standard wiederherstellen.",
+      "precedence": "Passende Regeln werden kombiniert. Bei derselben Eigenschaft gewinnt die untere Regel. Kalenderfarben bleiben erhalten, sofern keine Regel den Hintergrund ändert. Visuelle Stile ändern weder den Status noch die Erledigung eines Ereignisses.",
+      "suggestions": "Weitere Stile ausprobieren",
+      "sample": "Besprechung mit Alex",
+      "noCategories": "Noch keine Kategorien",
+      "treatments": {
+        "tentative": "Bleistift – grau und vorläufig",
+        "important": "Skizze – handgezeichnete Kontur",
+        "focus": "Ruhig – gestrichelter Rand",
+        "travel": "Unterwegs – diagonales Muster",
+        "deadline": "Marker – Unterstreichung",
+        "done": "Erledigt – durchgestrichen"
+      },
+      "fonts": {
+        "inherit": "Beibehalten",
+        "hand": "Handschrift",
+        "standard": "Standard"
       }
     }
   },
@@ -614,6 +660,16 @@
       "confirm": "Alle auf diesem Gerät gespeicherten Termine löschen? Termine auf deinem Server werden nicht gelöscht und können nach der nächsten Synchronisierung wieder erscheinen. Dies kann nicht rückgängig gemacht werden.",
       "action": "Lokale Termine löschen",
       "confirmCalendar": "Alle Termine in „{{name}}“ von diesem Gerät löschen? Termine auf deinem Server werden nicht gelöscht und können nach der nächsten Synchronisierung wieder erscheinen. Dies kann nicht rückgängig gemacht werden."
+    },
+    "resync": {
+      "group": "Synchronisierung",
+      "label": "Erneut vom Server synchronisieren",
+      "desc": "Calino vergisst, was bereits synchronisiert wurde, und lädt deine Kalender und Kontakte erneut vom Server herunter. Konten, Passwörter und Einstellungen bleiben erhalten. Nutze das, wenn etwas veraltet aussieht.",
+      "confirm": "Alles erneut von deinen Servern synchronisieren? Konten und Einstellungen bleiben erhalten, und noch nicht synchronisierte Änderungen von diesem Gerät werden weiterhin gesendet. Termine und Kontakte, die nur auf diesem Gerät existieren, werden nicht entfernt.",
+      "action": "Neu synchronisieren",
+      "running": "Synchronisiere…",
+      "done": "Synchronisierung abgeschlossen",
+      "failed": "Die Synchronisierung wurde mit Fehlern beendet. Prüfe deine Verbindung und versuche es erneut."
     },
     "resetApp": {
       "label": "Calino auf diesem Gerät zurücksetzen",

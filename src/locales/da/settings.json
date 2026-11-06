@@ -21,6 +21,14 @@
   "saved": "Gemt",
   "general": {
     "title": "Generelt",
+    "homeTimezone": {
+      "label": "Hjemmetidszone",
+      "desc": "Begivenheder vises og oprettes i denne tidszone. Automatisk følger browseren.",
+      "ariaLabel": "Hjemmetidszone",
+      "automatic": "Automatisk (browser)",
+      "search": "Søg efter tidszoner",
+      "noResults": "Ingen matchende tidszone"
+    },
     "dateFormat": {
       "label": "Datoformat",
       "desc": "Sådan vises datoer i hele appen",
@@ -270,7 +278,10 @@
       "15minBefore": "15 minutter før",
       "30minBefore": "30 minutter før",
       "1hourBefore": "1 time før",
-      "1dayBefore": "1 dag før"
+      "1dayBefore": "1 dag før",
+      "custom": "Brugerdefineret…",
+      "customAriaLabel": "Brugerdefineret værdi for standardpåmindelse",
+      "customUnitAriaLabel": "Enhed for brugerdefineret standardpåmindelse"
     }
   },
   "conflict": {
@@ -400,6 +411,41 @@
         "meetsAA": "Farverne opfylder WCAG AA.",
         "needsAttention": "Kontrasten kræver opmærksomhed",
         "looksGood": "Kontrasten ser god ud"
+      }
+    },
+    "categoryStyles": {
+      "title": "Stil efter kategori",
+      "description": "Giv begivenheder en visuel stil ud fra deres kategorier. Ændringer gemmes automatisk.",
+      "reset": "Gendan standarder",
+      "newRule": "Ny regel",
+      "disabled": "Deaktiveret",
+      "addRule": "Tilføj regel",
+      "enabled": "Aktiveret",
+      "categories": "Match en af kategorierne",
+      "matchHint": "Kommasepareret · præcise navne · uafhængigt af store og små bogstaver",
+      "style": "Stil",
+      "lettering": "Skrifttype",
+      "accent": "Accent",
+      "earlier": "↑ Tidligere",
+      "later": "↓ Senere",
+      "remove": "Fjern",
+      "empty": "Ingen regler. Tilføj en regel, eller gendan standarderne.",
+      "precedence": "Matchende regler kombineres. For samme egenskab vinder den nederste regel. Kalenderfarver bevares, medmindre en regel ændrer baggrunden. Visuelle stile ændrer ikke begivenhedens status eller fuldførelse.",
+      "suggestions": "Flere stile at prøve",
+      "sample": "Gennemgang med Alex",
+      "noCategories": "Ingen kategorier endnu",
+      "treatments": {
+        "tentative": "Blyant – grå og foreløbig",
+        "important": "Skitse – håndtegnet omrids",
+        "focus": "Rolig – stiplet kant",
+        "travel": "På farten – diagonalt mønster",
+        "deadline": "Markør – understregning",
+        "done": "Færdig – gennemstregning"
+      },
+      "fonts": {
+        "inherit": "Behold eksisterende",
+        "hand": "Håndskrevet",
+        "standard": "Standard"
       }
     }
   },
@@ -614,6 +660,16 @@
       "confirm": "Slet alle begivenheder, der er gemt på denne enhed? Begivenheder på din server slettes ikke og kan dukke op igen efter næste synkronisering. Dette kan ikke fortrydes.",
       "action": "Slet lokale begivenheder",
       "confirmCalendar": "Slet alle begivenheder i “{{name}}” fra denne enhed? Begivenheder på din server slettes ikke og kan dukke op igen efter næste synkronisering. Dette kan ikke fortrydes."
+    },
+    "resync": {
+      "group": "Synkronisering",
+      "label": "Synkronisér igen fra serveren",
+      "desc": "Glem, hvad Calino allerede har synkroniseret, og hent dine kalendere og kontakter igen fra serveren. Dine konti, adgangskoder og indstillinger bevares. Brug dette, hvis noget ser forældet ud.",
+      "confirm": "Synkronisér alt igen fra dine servere? Konti og indstillinger bevares, og ændringer på denne enhed, der endnu ikke er synkroniseret, sendes stadig. Begivenheder og kontakter, der kun findes på denne enhed, fjernes ikke.",
+      "action": "Synkronisér igen",
+      "running": "Synkroniserer igen…",
+      "done": "Synkronisering fuldført",
+      "failed": "Synkroniseringen sluttede med fejl. Tjek din forbindelse, og prøv igen."
     },
     "resetApp": {
       "label": "Nulstil Calino på denne enhed",

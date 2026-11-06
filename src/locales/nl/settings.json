@@ -21,6 +21,14 @@
   "saved": "Opgeslagen",
   "general": {
     "title": "Algemeen",
+    "homeTimezone": {
+      "label": "Thuis-tijdzone",
+      "desc": "Gebeurtenissen worden in deze tijdzone getoond en gemaakt. Automatisch volgt de browser.",
+      "ariaLabel": "Thuis-tijdzone",
+      "automatic": "Automatisch (browser)",
+      "search": "Zoek tijdzones",
+      "noResults": "Geen overeenkomende tijdzone"
+    },
     "dateFormat": {
       "label": "Datumnotatie",
       "desc": "Hoe datums in de app worden weergegeven",
@@ -270,7 +278,10 @@
       "15minBefore": "15 minuten van tevoren",
       "30minBefore": "30 minuten van tevoren",
       "1hourBefore": "1 uur van tevoren",
-      "1dayBefore": "1 dag van tevoren"
+      "1dayBefore": "1 dag van tevoren",
+      "custom": "Aangepast…",
+      "customAriaLabel": "Aangepaste waarde van standaardherinnering",
+      "customUnitAriaLabel": "Eenheid van aangepaste standaardherinnering"
     }
   },
   "conflict": {
@@ -400,6 +411,41 @@
         "meetsAA": "De kleuren voldoen aan WCAG AA.",
         "needsAttention": "Contrast vereist aandacht",
         "looksGood": "Het contrast ziet er goed uit"
+      }
+    },
+    "categoryStyles": {
+      "title": "Stijl per categorie",
+      "description": "Geef afspraken een stijl op basis van hun categorieën. Wijzigingen worden automatisch opgeslagen.",
+      "reset": "Standaard herstellen",
+      "newRule": "Nieuwe regel",
+      "disabled": "Uitgeschakeld",
+      "addRule": "Regel toevoegen",
+      "enabled": "Ingeschakeld",
+      "categories": "Overeenkomende categorieën",
+      "matchHint": "Kommagescheiden · exacte namen · niet hoofdlettergevoelig",
+      "style": "Stijl",
+      "lettering": "Lettertype",
+      "accent": "Accent",
+      "earlier": "↑ Eerder",
+      "later": "↓ Later",
+      "remove": "Verwijderen",
+      "empty": "Geen regels. Voeg een regel toe of herstel de standaardinstellingen.",
+      "precedence": "Overeenkomende regels worden gecombineerd. Bij dezelfde eigenschap wint de onderste regel. Kalenderkleuren blijven zichtbaar tenzij een regel de achtergrond wijzigt. Visuele stijlen veranderen de status of voltooiing van een afspraak niet.",
+      "suggestions": "Meer stijlen om te proberen",
+      "sample": "Bespreking met Alex",
+      "noCategories": "Nog geen categorieën",
+      "treatments": {
+        "tentative": "Potlood – grijs en voorlopig",
+        "important": "Schets – handgetekende omlijning",
+        "focus": "Rust – stippellijn",
+        "travel": "Onderweg – diagonale textuur",
+        "deadline": "Markeerstift – onderstreping",
+        "done": "Afgerond – doorgestreept"
+      },
+      "fonts": {
+        "inherit": "Bestaande behouden",
+        "hand": "Handgeschreven",
+        "standard": "Standaard"
       }
     }
   },
@@ -614,6 +660,16 @@
       "confirm": "Alle afspraken op dit apparaat verwijderen? Afspraken op je server worden niet verwijderd en kunnen na de volgende synchronisatie weer verschijnen. Dit kan niet ongedaan worden gemaakt.",
       "action": "Lokale afspraken verwijderen",
       "confirmCalendar": "Alle afspraken in “{{name}}” van dit apparaat verwijderen? Afspraken op je server worden niet verwijderd en kunnen na de volgende synchronisatie weer verschijnen. Dit kan niet ongedaan worden gemaakt."
+    },
+    "resync": {
+      "group": "Synchronisatie",
+      "label": "Opnieuw synchroniseren vanaf de server",
+      "desc": "Vergeet wat Calino al heeft gesynchroniseerd en download je agenda’s en contacten opnieuw van de server. Je accounts, wachtwoorden en instellingen blijven behouden. Gebruik dit als iets verouderd lijkt.",
+      "confirm": "Alles opnieuw synchroniseren vanaf je servers? Accounts en instellingen blijven behouden en wijzigingen op dit apparaat die nog niet zijn gesynchroniseerd worden nog steeds verzonden. Afspraken en contacten die alleen op dit apparaat bestaan, worden niet verwijderd.",
+      "action": "Opnieuw synchroniseren",
+      "running": "Opnieuw synchroniseren…",
+      "done": "Synchronisatie voltooid",
+      "failed": "Synchronisatie met fouten beëindigd. Controleer je verbinding en probeer het opnieuw."
     },
     "resetApp": {
       "label": "Calino op dit apparaat resetten",

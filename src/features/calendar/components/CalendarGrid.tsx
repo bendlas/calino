@@ -26,19 +26,30 @@ import {
   endOfWeek,
   eachDayOfInterval,
   isSameMonth,
-  isToday,
   parseISO,
   getISOWeek,
   getDay,
   addMonths,
   subMonths,
   isSameDay,
-  isBefore,
-  startOfDay,
   addDays,
   differenceInCalendarDays,
 } from 'date-fns'
-import { pad2, toEventInstant, toZoneWallClock, formatDisplayDate } from '@/lib/datetime'
+import {
+  pad2,
+  toEventInstant,
+  formatDisplayDate,
+  daysBetween,
+  addDays as addDayKey,
+} from '@/lib/datetime'
+import {
+  homeDayKey,
+  homeMinutes,
+  isHomeToday,
+  movedDueValue,
+  parseHomeWall,
+  useHomeTimezone,
+} from '@/lib/homeTimezone'
 import { useTranslation } from 'react-i18next'
 import i18n from '@/lib/i18n'
 import { useCalendarStore } from '@/store/calendarStore'
@@ -63,7 +74,9 @@ import { useDragDuplicateModifier } from '@/hooks/useDragDuplicateModifier'
 import {
   useMonthEventCapacity,
   fitMonthCell,
+  PAST_WEEK_MIN_HEIGHT,
   type MonthCellCapacity,
+  type MonthDayDemand,
   type MonthRowKind,
 } from '@/hooks/useMonthEventCapacity'
 import { useDragModifierStore } from '@/store/dragModifierStore'
@@ -155,6 +168,7 @@ const SCROLL_CHAIN_QUIET_MS = 500
 
 export function CalendarGrid(): JSX.Element {
   const { t } = useTranslation('calendar')
+  useHomeTimezone()
   const currentDate = useCalendarStore((state) => state.currentDate)
   const events = useCalendarStore((state) => state.events)
   const calendars = useCalendarStore((state) => state.calendars)
@@ -537,13 +551,17 @@ export function CalendarGrid(): JSX.Element {
 
     let targetDayStr = dayStr
     if (grabbedDay) {
-      const offset = differenceInCalendarDays(parseISO(grabbedDay), originalStart)
-      targetDayStr = format(addDays(parseISO(dayStr), -offset), 'yyyy-MM-dd')
+      const originKey = originalEvent.isAllDay
+        ? originalEvent.start.slice(0, 10)
+        : homeDayKey(originalStart)
+      const offset = daysBetween(originKey, grabbedDay)
+      targetDayStr = addDayKey(dayStr, -offset)
     }
 
-    const hours = pad2(originalStart.getHours())
-    const minutes = pad2(originalStart.getMinutes())
-    const newStart = parseISO(`${targetDayStr}T${hours}:${minutes}:00`)
+    const movedMinutes = homeMinutes(originalStart)
+    const hours = pad2(Math.floor(movedMinutes / 60))
+    const minutes = pad2(movedMinutes % 60)
+    const newStart = parseHomeWall(`${targetDayStr}T${hours}:${minutes}:00`)
     const newEnd = new Date(newStart.getTime() + durationMs)
 
     const isTask = originalEvent.type === 'task'
@@ -558,15 +576,9 @@ export function CalendarGrid(): JSX.Element {
         !originalEvent.dueDate.endsWith('T00:00')
 
       if (hasTime) {
-        const timeHours = pad2(originalDueDate.getHours())
-        const timeMinutes = pad2(originalDueDate.getMinutes())
-        // TZID tasks store their due time as the zone's wall clock.
-        newDueDate = originalEvent.timezone
-          ? toZoneWallClock(
-              new Date(`${dayStr}T${timeHours}:${timeMinutes}:00`).toISOString(),
-              originalEvent.timezone
-            )
-          : `${dayStr}T${timeHours}:${timeMinutes}:00`
+        const dueMinutes = homeMinutes(originalDueDate)
+        const dueTime = `${pad2(Math.floor(dueMinutes / 60))}:${pad2(dueMinutes % 60)}:00`
+        newDueDate = movedDueValue(originalEvent.dueDate, originalEvent.timezone, dayStr, dueTime)
       }
     }
 
@@ -640,7 +652,9 @@ export function CalendarGrid(): JSX.Element {
     gridEvents.forEach((event) => {
       const fragments = makeDayFragments(event, laneOf.get(event.id))
       fragments.forEach((fragment) => {
-        const eventDate = format(toEventInstant(fragment.start, fragment.timezone), 'yyyy-MM-dd')
+        const eventDate = fragment.isAllDay
+          ? fragment.start.slice(0, 10)
+          : homeDayKey(toEventInstant(fragment.start, fragment.timezone))
         const existing = map.get(eventDate) || []
         map.set(eventDate, [...existing, fragment])
       })
@@ -683,7 +697,9 @@ export function CalendarGrid(): JSX.Element {
           (selectedCategoryNames.length === 0 ||
             event.categories?.some((c) => selectedCategoryNames.includes(c)))
       )
-      if (dayTasks.length > 0) map.set(dayKey, dayTasks)
+      // Timed tasks by time, untimed ones in their manual order. The cell, its
+      // "+N more" popup and the hidden count all read this one order.
+      if (dayTasks.length > 0) map.set(dayKey, dayTasks.sort(compareDayEvents))
     }
     return map
   }, [days, events, calendars, hideCompletedTasksInMonthView, selectedCategoryNames])
@@ -1134,9 +1150,10 @@ export function CalendarGrid(): JSX.Element {
   const autoLimitEnabled = monthLimitIsAuto && !showAgendaSplit && !isCompactMobile
   const compressedWeekCount = useMemo(() => {
     if (!compressWeekRows) return 0
-    const today = startOfDay(new Date())
+    const todayKey = homeDayKey(new Date())
     return weekNumbers.reduce(
-      (count, _weekNum, weekIdx) => (isBefore(days[weekIdx * 7 + 6], today) ? count + 1 : count),
+      (count, _weekNum, weekIdx) =>
+        format(days[weekIdx * 7 + 6], 'yyyy-MM-dd') < todayKey ? count + 1 : count,
       0
     )
   }, [compressWeekRows, weekNumbers, days])
@@ -1175,6 +1192,31 @@ export function CalendarGrid(): JSX.Element {
     return () => observer.disconnect()
   }, [measureAdaptiveRowFloor])
 
+  // What each past week's days will draw, so the week can be sized to it.
+  // Past weeks are the leading ones, so entry `i` is week `i`.
+  const pastWeekDemand = useMemo(() => {
+    if (!autoLimitEnabled) return undefined
+    return Array.from({ length: compressedWeekCount }, (_unused, weekIdx) =>
+      days.slice(weekIdx * 7, weekIdx * 7 + 7).map((day) => {
+        const dateKey = format(day, 'yyyy-MM-dd')
+        return pastDayDemand(
+          eventsMap.get(dateKey) || [],
+          visibleTasksMap.get(dateKey) || [],
+          compactRecurringEvents,
+          isCompactMobile
+        )
+      })
+    )
+  }, [
+    autoLimitEnabled,
+    compressedWeekCount,
+    days,
+    eventsMap,
+    visibleTasksMap,
+    compactRecurringEvents,
+    isCompactMobile,
+  ])
+
   const autoCapacity = useMonthEventCapacity({
     enabled: autoLimitEnabled,
     gridRef: gridScrollRef,
@@ -1185,7 +1227,25 @@ export function CalendarGrid(): JSX.Element {
     // floor is lowered on short windows, so Auto can reduce the number of
     // cards before the grid needs to fall back to scrolling.
     rowHeightFloor: showGutter ? adaptiveRowFloor : 0,
+    pastWeekDemand,
   })
+  // A past week sized to its content is a fixed height; the weeks still to
+  // come are `flex: 1` and share what it leaves. Unmeasured, or with nothing
+  // to size it by, it keeps the `.compressedWeek` flex weight.
+  const pastWeekRowStyle = (
+    weekIdx: number,
+    isCompressed: boolean
+  ): React.CSSProperties | undefined => {
+    const height = isCompressed ? autoCapacity?.pastWeeks[weekIdx]?.height : undefined
+    if (height === undefined) return undefined
+    // The week-number cell holds a row at the grid's min-height, which would
+    // keep a row sized to a pill or two from getting that short.
+    return {
+      flex: `0 0 ${height}px`,
+      '--month-row-min-height': `${PAST_WEEK_MIN_HEIGHT}px`,
+    } as React.CSSProperties
+  }
+
   // Auto is on but nothing has been measured yet (first paint, or a hidden
   // grid): fall back to the old default rather than rendering every event.
   const fixedEventLimit = monthLimitIsAuto ? 3 : monthViewEventLimit
@@ -1363,13 +1423,14 @@ export function CalendarGrid(): JSX.Element {
                   >
                     {weekNumbers.map((weekNum, weekIdx) => {
                       const weekEnd = days[weekIdx * 7 + 6]
-                      const today = startOfDay(new Date())
-                      const isPastWeek = compressPastWeeks && isBefore(weekEnd, today)
+                      const isPastWeek =
+                        compressPastWeeks && format(weekEnd, 'yyyy-MM-dd') < homeDayKey(new Date())
 
                       return (
                         <div
                           key={weekIdx}
                           className={`${styles.weekRow} ${!showGutter ? styles.weekRowNoWeekNum : !showWeekNumbers ? styles.weekRowSlim : ''} ${compressWeekRows && isPastWeek ? styles.compressedWeek : ''}`}
+                          style={pastWeekRowStyle(weekIdx, compressWeekRows && isPastWeek)}
                         >
                           {showGutter && (
                             <WeekGutterCell
@@ -1412,7 +1473,7 @@ export function CalendarGrid(): JSX.Element {
                             const dayEvents = eventsMap.get(dateKey) || []
                             const dayTasks = visibleTasksMap.get(dateKey) || []
                             const isCurrentMonth = isSameMonth(day, date)
-                            const isTodayDate = isToday(day)
+                            const isTodayDate = isHomeToday(day)
                             const dayOfWeek = getDay(day)
                             const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
 
@@ -1572,13 +1633,14 @@ export function CalendarGrid(): JSX.Element {
             >
               {weekNumbers.map((weekNum, weekIdx) => {
                 const weekEnd = days[weekIdx * 7 + 6]
-                const today = startOfDay(new Date())
-                const isPastWeek = compressPastWeeks && isBefore(weekEnd, today)
+                const isPastWeek =
+                  compressPastWeeks && format(weekEnd, 'yyyy-MM-dd') < homeDayKey(new Date())
 
                 return (
                   <div
                     key={weekIdx}
                     className={`${styles.weekRow} ${!showGutter ? styles.weekRowNoWeekNum : !showWeekNumbers ? styles.weekRowSlim : ''} ${compressWeekRows && isPastWeek ? styles.compressedWeek : ''}`}
+                    style={pastWeekRowStyle(weekIdx, compressWeekRows && isPastWeek)}
                   >
                     {showGutter && (
                       <WeekGutterCell
@@ -1612,7 +1674,7 @@ export function CalendarGrid(): JSX.Element {
                       const dayEvents = eventsMap.get(dateKey) || []
                       const dayTasks = visibleTasksMap.get(dateKey) || []
                       const isCurrentMonth = isSameMonth(day, date)
-                      const isTodayDate = isToday(day)
+                      const isTodayDate = isHomeToday(day)
                       const dayOfWeek = getDay(day)
                       const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
 
@@ -1639,7 +1701,9 @@ export function CalendarGrid(): JSX.Element {
                           monthViewEventLimit={fixedEventLimit}
                           monthCapacity={
                             compressWeekRows && isPastWeek
-                              ? (autoCapacity?.compressed ?? null)
+                              ? (autoCapacity?.pastWeeks[weekIdx]?.capacity ??
+                                autoCapacity?.compressed ??
+                                null)
                               : (autoCapacity?.full ?? null)
                           }
                           isMobile={isMobile}
@@ -1701,6 +1765,28 @@ function monthRowKind(
     (compactRecurringEvents &&
       (!!item.rruleString || !!item.recurrence || item.isAllDay || isMultiDay))
   return compact ? 'compactEvent' : 'event'
+}
+
+/**
+ * The rows a past week's day cell will draw. Every one is a compact pill, and
+ * a multi-day fragment sitting in a lane below the first reserves the lanes
+ * above it with spacers (see `eventSlots`), each as tall as a pill.
+ */
+function pastDayDemand(
+  dayEvents: CalendarEvent[],
+  dayTasks: CalendarEvent[],
+  compactRecurringEvents: boolean,
+  isCompactMobile: boolean
+): MonthDayDemand {
+  const kind = (item: CalendarEvent): MonthRowKind =>
+    monthRowKind(item, true, compactRecurringEvents, isCompactMobile)
+  const events = dayEvents.map(kind)
+  const lanes = dayEvents.reduce(
+    (count, event) => (event.isFragment ? Math.max(count, (event.laneIndex ?? -1) + 1) : count),
+    0
+  )
+  while (events.length < lanes) events.push('compactEvent')
+  return { events, tasks: dayTasks.map(kind) }
 }
 
 interface DroppableDayProps {

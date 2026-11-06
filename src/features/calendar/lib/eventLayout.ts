@@ -1,5 +1,6 @@
 import type { CalendarEvent } from '@/types'
 import { toEventInstant } from '@/lib/datetime'
+import { homeMinutes } from '@/lib/homeTimezone'
 
 /** Shared gap between adjacent event columns. */
 const GAP = 4
@@ -14,7 +15,9 @@ const GAP = 4
 export function positionedEventStyle(
   event: CalendarEvent,
   column: number,
-  totalColumns: number
+  totalColumns: number,
+  columnSpan = 1,
+  inset = 0
 ): {
   top: string
   height: string
@@ -23,18 +26,15 @@ export function positionedEventStyle(
 } {
   const start = toEventInstant(event.start, event.timezone)
   const end = toEventInstant(event.end, event.timezone)
-  const startHour = start.getHours()
-  const startMinutes = start.getMinutes()
+  const startMinutesOfDay = homeMinutes(start)
   const durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60)
 
-  const leftPercent = (column / totalColumns) * 100 + GAP / 2
-  const widthPercent = 100 / totalColumns - GAP
+  const horizontal = horizontalStyle(column, totalColumns, columnSpan, inset)
 
   return {
-    top: `calc(var(--hour-height, 60px) * ${startHour + startMinutes / 60})`,
+    top: `calc(var(--hour-height, 60px) * ${startMinutesOfDay / 60})`,
     height: `calc(var(--hour-height, 60px) * ${durationMinutes / 60})`,
-    left: `${leftPercent}%`,
-    width: `${widthPercent}%`,
+    ...horizontal,
   }
 }
 
@@ -56,15 +56,14 @@ export function transparentEventStyle(
 } {
   const start = toEventInstant(event.start, event.timezone)
   const end = toEventInstant(event.end, event.timezone)
-  const startHour = start.getHours()
-  const startMinutes = start.getMinutes()
+  const startMinutesOfDay = homeMinutes(start)
   const durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60)
 
   const leftPercent = gap / 2
   const widthPercent = 100 - gap
 
   return {
-    top: `calc(var(--hour-height, 60px) * ${startHour + startMinutes / 60})`,
+    top: `calc(var(--hour-height, 60px) * ${startMinutesOfDay / 60})`,
     height: `calc(var(--hour-height, 60px) * ${durationMinutes / 60})`,
     left: `${leftPercent}%`,
     width: `${widthPercent}%`,
@@ -92,23 +91,22 @@ export const TASK_PILL_LAYOUT_MINUTES = 30
 export function taskPillStyle(
   task: CalendarEvent,
   column: number,
-  totalColumns: number
+  totalColumns: number,
+  columnSpan = 1,
+  inset = 0
 ): {
   top: string
   left: string
   width: string
 } {
   const due = toEventInstant(task.start, task.timezone)
-  const hour = due.getHours()
-  const minutes = due.getMinutes()
+  const minutesOfDay = homeMinutes(due)
 
-  const leftPercent = (column / totalColumns) * 100 + GAP / 2
-  const widthPercent = 100 / totalColumns - GAP
+  const horizontal = horizontalStyle(column, totalColumns, columnSpan, inset)
 
   return {
-    top: `calc(var(--hour-height, 60px) * ${hour + minutes / 60})`,
-    left: `${leftPercent}%`,
-    width: `${widthPercent}%`,
+    top: `calc(var(--hour-height, 60px) * ${minutesOfDay / 60})`,
+    ...horizontal,
   }
 }
 
@@ -120,7 +118,9 @@ export function taskPillStyle(
 export function travelBarStyle(
   event: CalendarEvent,
   column: number,
-  totalColumns: number
+  totalColumns: number,
+  columnSpan = 1,
+  inset = 0
 ): {
   top: string
   height: string
@@ -130,16 +130,26 @@ export function travelBarStyle(
   const start = toEventInstant(event.start, event.timezone)
   const travelDurationMinutes = event.travelDuration ?? 0
   const travelStart = new Date(start.getTime() - travelDurationMinutes * 60 * 1000)
-  const travelStartHour = travelStart.getHours()
-  const travelStartMinutes = travelStart.getMinutes()
+  const travelStartMinutesOfDay = homeMinutes(travelStart)
 
-  const leftPercent = (column / totalColumns) * 100 + GAP / 2
-  const widthPercent = 100 / totalColumns - GAP
+  const horizontal = horizontalStyle(column, totalColumns, columnSpan, inset)
 
   return {
-    top: `calc(var(--hour-height, 60px) * ${travelStartHour + travelStartMinutes / 60})`,
+    top: `calc(var(--hour-height, 60px) * ${travelStartMinutesOfDay / 60})`,
     height: `calc(var(--hour-height, 60px) * ${travelDurationMinutes / 60})`,
-    left: `${leftPercent}%`,
-    width: `${widthPercent}%`,
+    ...horizontal,
   }
+}
+
+function horizontalStyle(
+  column: number,
+  totalColumns: number,
+  columnSpan: number,
+  inset: number
+): { left: string; width: string } {
+  const left = (column / totalColumns) * 100 + GAP / 2
+  const width = (columnSpan / totalColumns) * 100 - GAP
+  if (!inset) return { left: `${left}%`, width: `${width}%` }
+  const offset = `min(${inset}px, ${width / 3}%)`
+  return { left: `calc(${left}% + ${offset})`, width: `calc(${width}% - ${offset})` }
 }
